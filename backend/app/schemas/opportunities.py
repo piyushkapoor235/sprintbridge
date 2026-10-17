@@ -53,6 +53,8 @@ class OpportunitySummary(BaseModel):
     deadline: datetime
     status: OpportunityStatus
     created_at: datetime
+    red_flags: list[str] = []  # scam-phrase warnings (docs/threat-model.md §5)
+    moderation_status: str = "visible"
 
 
 class SkillCoverage(BaseModel):

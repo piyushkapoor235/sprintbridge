@@ -22,7 +22,7 @@ export default function JobFit() {
   return (
     <>
       <Heading
-        eyebrow="CLARITY BEFORE YOUR NEXT MOVE"
+        eyebrow="Clarity before your next move"
         title="Explore your job fit"
       >
         Understand the match between a role’s requirements and your skill
@@ -79,7 +79,7 @@ export default function JobFit() {
       {result.loading && <Loading />}
       {result.data && (
         <section className="panel">
-          <p className="eyebrow">YOUR FIT REPORT</p>
+          <p className="eyebrow">Your fit report</p>
           <div className="coverage-number">
             {result.data.fit_percent === null
               ? "—"

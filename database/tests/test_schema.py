@@ -242,10 +242,10 @@ def test_external_jd_is_private_and_hashed(db):
 
 def test_only_founder_decides_collaboration(db):
     founder, member, stranger = db.new_user(), db.new_user(), db.new_user()
-    venture = db.user(founder, """insert into public.ventures (title, problem, industry, needed_skills)
-                                  values ('V', 'P', 'Edtech', %s) returning id""", (["React", "react"],)).fetchone()[0]
+    venture = db.user(founder, """insert into public.ventures (title, teaser, problem, industry, needed_skills)
+                                  values ('V', 'T', 'P', 'Edtech', %s) returning id""", (["React", "react"],)).fetchone()[0]
     assert db.admin("select needed_skills from public.ventures where id = %s", (venture,)).fetchone()[0] == ["react"]
-    req = db.user(member, "insert into public.collaboration_requests (venture_id, note) values (%s, 'Join') returning id",
+    req = db.user(member, "insert into public.collaboration_requests (venture_id, note, nda_accepted) values (%s, 'Join', true) returning id",
                   (venture,)).fetchone()[0]
     db.user(stranger, "update public.collaboration_requests set status = 'accepted' where id = %s", (req,))
     assert db.admin("select status from public.collaboration_requests where id = %s", (req,)).fetchone()[0] == "pending"

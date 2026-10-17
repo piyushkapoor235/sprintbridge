@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "../auth";
 import { useQuery } from "../lib/useQuery";
 import type {
@@ -19,6 +19,7 @@ import {
   date,
 } from "../components/ui";
 import { ApiError } from "../lib/http";
+import { ReportButton } from "./Ventures";
 
 export default function OpportunityDetail() {
   const { id } = useParams();
@@ -136,6 +137,15 @@ function Detail({ id }: { id: string }) {
         {job.type === "internship" ? "Internship" : "Job"} · Closes{" "}
         {date(job.deadline)}
       </Heading>
+      {(job.red_flags ?? []).length > 0 && (
+        <div className="notice warning" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>Be careful with this listing.</strong> Its text {job.red_flags!.join(", ")}. Genuine employers
+            never charge candidates. Report it if something feels wrong.
+          </div>
+        </div>
+      )}
       <div className="two-column">
         <div className="stack">
           <section className="panel">
@@ -152,9 +162,10 @@ function Detail({ id }: { id: string }) {
                 {job.compensation.pay_period.replace("_", " ")}
               </p>
             )}
+            <ReportButton targetType="opportunity" targetId={job.id} />
           </section>
           <section className="panel">
-            <p className="eyebrow">KNOW WHERE YOU STAND</p>
+            <p className="eyebrow">Know where you stand</p>
             <h2>Your skill coverage</h2>
             {coverage ? (
               <>

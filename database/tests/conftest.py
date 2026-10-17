@@ -41,6 +41,8 @@ class Db:
 
     def admin(self, sql: str, params=None):
         self.conn.execute("reset role")
+        # Owner/setup context: no signed-in user (plan limits and quotas do not apply).
+        self.conn.execute("select set_config('request.jwt.claim.sub', '', true)")
         return self.conn.execute(sql, params)
 
     def user(self, user_id: uuid.UUID, sql: str, params=None):

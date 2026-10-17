@@ -17,7 +17,7 @@ export function Heading({
   return (
     <header className="page-heading">
       <div>
-        <p className="eyebrow">{eyebrow || "YOUR NEXT CHAPTER"}</p>
+        <p className="eyebrow">{eyebrow || "Your next chapter"}</p>
         <h1>{title}</h1>
         {children && <p className="muted">{children}</p>}
       </div>
@@ -137,4 +137,22 @@ export function date(value: string) {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
+}
+export function inr(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+/** A clearly labelled simulated payment step: no real money ever moves. */
+export function TestPaymentNote({ amount, what }: { amount: number; what: string }) {
+  return (
+    <p className="notice test-pay" role="note">
+      <strong>Test mode</strong>
+      <span>
+        {what} costs {inr(amount)}. Confirming records a simulated payment — no card is charged.
+      </span>
+    </p>
+  );
 }

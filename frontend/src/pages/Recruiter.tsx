@@ -49,7 +49,7 @@ function RecruiterWorkspace({ company }: { company: string }) {
   const [message, setMessage] = useState("");
   return (
     <>
-      <Heading eyebrow="BUILD YOUR NEXT TEAM" title="Recruiter workspace">
+      <Heading eyebrow="Build your next team" title="Recruiter workspace">
         Create opportunities and move promising applications forward.
       </Heading>
       <div className="tabs">

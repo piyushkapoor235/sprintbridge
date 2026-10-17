@@ -104,7 +104,19 @@ def user_skills(db: Client, user_id: str) -> list[UserSkill]:
         else:
             skills.append(UserSkill(skill=skill, label=EvidenceLabel.self_declared, level=1,
                                     evidence_score=None, evidence=[]))
-    return skills
+    # Independent mentor verification outranks every other label (docs/threat-model.md §1.1).
+    verified = {v["skill"]: v for v in run(db.rpc("my_verified_skills", {})).data or []}
+    merged: list[UserSkill] = []
+    for item in skills:
+        v = verified.pop(item.skill, None)
+        if v:
+            item = item.model_copy(update={"label": EvidenceLabel.mentor_verified, "level": v["level"],
+                                           "verified_until": v["expires_at"]})
+        merged.append(item)
+    for skill, v in sorted(verified.items()):
+        merged.append(UserSkill(skill=skill, label=EvidenceLabel.mentor_verified, level=v["level"],
+                                evidence_score=None, evidence=[], verified_until=v["expires_at"]))
+    return merged
 
 
 def held_map(skills: list[UserSkill]) -> dict[str, Held]:

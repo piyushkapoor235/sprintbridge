@@ -67,7 +67,7 @@ export default function Opportunities() {
   }
   return (
     <>
-      <Heading eyebrow="FIND YOUR NEXT STEP" title="Opportunities">
+      <Heading eyebrow="Find your next step" title="Opportunities">
         Find a place to put your skills to work.
       </Heading>
       <form

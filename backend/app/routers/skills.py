@@ -46,6 +46,7 @@ async def upload_resume(
                                   skills_found=len(found), skills_rejected=0)  # unchanged file: not re-billed
 
     extraction = llm.extract_resume(raw)
+    run(db.rpc("consume_quota", {"p_metric": "resume_analyses"}))  # counted only after a successful analysis
     accepted, rejected = [], 0
     for item in extraction.skills:
         name = _skill_name(item.skill)
@@ -105,6 +106,7 @@ def _to_jd(row: dict, requirements: list[dict]) -> JobDescription:
 def create_jd(body: JdCreate, actor: Actor = Depends(get_actor), db: Client = Depends(get_db)) -> JobDescription:
     text = body.text or fetch_job_text(body.source_url)
     extraction = llm.extract_job_description(text)  # before saving: an outage leaves nothing half-made
+    run(db.rpc("consume_quota", {"p_metric": "jd_reports"}))  # counted only after a successful analysis
     source = squash(text)
     requirements: dict[str, dict] = {}
     for req in extraction.requirements:

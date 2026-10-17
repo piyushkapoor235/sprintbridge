@@ -20,7 +20,7 @@ export default function Login() {
           </span>
         </div>
         <div>
-          <p className="eyebrow">FROM POTENTIAL TO POSSIBILITY</p>
+          <p className="eyebrow">From potential to possibility</p>
           <h1>
             Your skills.
             <br />
@@ -42,12 +42,12 @@ export default function Login() {
           </div>
         </div>
         <span className="story-footer">
-          MAKE YOUR NEXT MOVE COUNT <ArrowUpRight size={22} />
+          Make your next move count <ArrowUpRight size={22} />
         </span>
       </section>
       <main className="login-form">
         <div className="login-box">
-          <p className="eyebrow">WELCOME TO SPRINTBRIDGE</p>
+          <p className="eyebrow">Welcome to SprintBridge</p>
           <h2>Good to see you.</h2>
           <p className="muted">Sign in to pick up where you left off.</p>
           {!configured && (

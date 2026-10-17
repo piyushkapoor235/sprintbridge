@@ -12,6 +12,8 @@ __pycache__/
 # Frontend (added in S06)
 node_modules/
 dist/
+test-results/
+playwright-report/
 
 # OS / editor
 .DS_Store

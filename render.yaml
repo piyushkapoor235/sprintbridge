@@ -22,3 +22,23 @@ services:
         sync: false  # the deployed frontend URL, comma-separated with http://localhost:5173
       - key: ANTHROPIC_API_KEY
         sync: false  # optional: resume/JD analysis returns 503 without it
+  - type: web
+    name: sprintbridge-frontend
+    runtime: static
+    branch: frontend
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: 24.11.0
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false

@@ -10,7 +10,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.errors import register_error_handlers
-from app.routers import applications, drives, health, me, mentors, opportunities, skills, university, ventures
+from app.routers import (
+    applications,
+    billing,
+    drives,
+    health,
+    me,
+    mentors,
+    opportunities,
+    skills,
+    trust,
+    university,
+    ventures,
+    verification,
+)
 
 logger = logging.getLogger("sprintbridge")
 if not logger.handlers:  # uvicorn configures only its own loggers
@@ -56,7 +69,10 @@ def create_app() -> FastAPI:
 
     register_error_handlers(app)
 
-    for module in (health, me, opportunities, applications, university, drives, mentors, skills, ventures):
+    for module in (
+        health, me, opportunities, applications, university, drives, mentors, skills, ventures,
+        verification, billing, trust,
+    ):
         app.include_router(module.router, prefix="/api")
 
     return app

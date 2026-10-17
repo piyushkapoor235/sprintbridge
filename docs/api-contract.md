@@ -53,6 +53,10 @@ The frontend branches on `code`, never on `detail`.
 | 404 | `NOT_FOUND` | Missing, or not visible to the caller (private rows look missing) |
 | 409 | `ALREADY_APPLIED` | Duplicate application; `detail` names the existing application |
 | 409 | `ALREADY_REQUESTED` | Duplicate mentor or collaboration request |
+| 402 | `PAYMENT_REQUIRED` | A paid action (plan, paid mentor session, verification) needs `confirm_test_payment: true`; `detail` states the amount. Test mode: no real money |
+| 402 | `QUOTA_EXCEEDED` / `PLAN_LIMIT` | Monthly free quota used up, or the plan's listing/drive/venture limit reached |
+| 409 | `COOLDOWN` / `ALREADY_VERIFIED` / `NO_VERIFIER_AVAILABLE` | Verification retry inside 30 days; already verified at that level; no conflict-free verifier (nothing is charged) |
+| 409 | `ALREADY_REPORTED` | The caller already reported this item |
 | 409 | `ALREADY_EXISTS` | Duplicate campus drive for the same university and opportunity |
 | 409 | `INVALID_TRANSITION` | Status change not allowed (e.g. `offered` → `rejected`) |
 | 409 | `DEADLINE_PASSED` | Listing or drive deadline is over |
@@ -100,8 +104,25 @@ The frontend branches on `code`, never on `detail`.
 | POST | /api/ventures/{venture_id}/requests | S18 | Signed in, not the founder | `CollaborationRequestCreate {note}` | `201 CollaborationRequest` |
 | GET | /api/collaboration-requests | S18 | Requester or founder | `scope=requester\|founder, page` | `Page[CollaborationRequest]` |
 | PATCH | /api/collaboration-requests/{request_id} | S18 | Founder | `RequestDecision {status}` | `CollaborationRequest` |
+| PATCH | /api/mentors/me | Ext | Mentor | `MentorProfilePatch {niche?, experience_summary?, session_price_inr?, is_active?}` | `MentorSummary` |
+| POST | /api/mentor-requests/{request_id}/complete | Ext | Owning mentor | — | `MentorRequest` (payout held 7 days) |
+| POST | /api/mentor-requests/{request_id}/dispute | Ext | Requester | `DisputeCreate {reason}` | `MentorRequest` |
+| POST | /api/verifications | Ext | Signed in | `VerificationCreate {skill, level, confirm_test_payment}` | `201 VerificationCreated` |
+| GET | /api/verifications | Ext | Signed in | — | `Verification[]` (verifier revealed at session start) |
+| GET | /api/verifications/queue | Ext | Mentor | — | `VerifierQueue` (assignments + blind audits) |
+| POST | /api/verifications/{verification_id}/start | Ext | Assigned verifier | — | status `in_session` |
+| POST | /api/verifications/{verification_id}/result | Ext | Assigned verifier | `VerificationResult {passed, level?, notes?}` | status `passed`/`failed` |
+| POST | /api/verification-audits/{audit_id} | Ext | Assigned auditor | `AuditResult {passed, level?}` | `{agrees}` |
+| GET | /api/plans | Ext | Signed in | — | `Plan[]` |
+| GET | /api/billing | Ext | Signed in | — | `Billing` (plans, usage, payments, payouts) |
+| POST | /api/subscriptions | Ext | Signed in / org manager | `SubscribeRequest {plan_code, organization_id?, confirm_test_payment}` | `SubscribeResult` |
+| POST | /api/reports | Ext | Signed in | `ReportCreate {target_type, target_id, reason, details?}` | `201 ReportCreated` |
+| GET | /api/operator/queue | Ext | Operator | — | `OperatorQueue` (reports, flagged, payouts, audit log) |
+| POST | /api/operator/moderate | Ext | Operator | `ModerationAction {target_type, target_id, action, note?}` | `{action}` |
+| POST | /api/operator/payouts/release-due | Ext | Operator | — | `{released}` |
+| POST | /api/operator/payouts/{payout_id} | Ext | Operator | `PayoutAction {action: release\|refund}` | `{action}` |
 
-All 33 operations are implemented (18 October 2026) and exercised end-to-end against the live project by `backend/tests_live/test_journeys.py`. Resume and JD analysis need `ANTHROPIC_API_KEY`; without it they return `503 SERVICE_UNAVAILABLE`, and everything else works.
+All operations are implemented (18 October 2026); rows marked **Ext** come from the threat-model and business-model extensions (migrations 0012–0016) and exercised end-to-end against the live project by `backend/tests_live/test_journeys.py`. Resume and JD analysis need `ANTHROPIC_API_KEY`; without it they return `503 SERVICE_UNAVAILABLE`, and everything else works.
 
 ## 3. Examples
 

@@ -11,7 +11,7 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
   return (
     <>
-      <Heading eyebrow="INTRODUCE YOURSELF" title="Your profile">
+      <Heading eyebrow="Introduce yourself" title="Your profile">
         Give your experience a place to speak for itself.
       </Heading>
       <div className="two-column">

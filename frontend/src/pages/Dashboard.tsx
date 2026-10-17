@@ -3,8 +3,11 @@ import {
   ArrowRight,
   ArrowUpRight,
   BriefcaseBusiness,
+  Check,
   FileCheck2,
   Sparkles,
+  UserRound,
+  UsersRound,
 } from "lucide-react";
 import { useAuth } from "../auth";
 import { useQuery } from "../lib/useQuery";
@@ -20,14 +23,14 @@ export default function Dashboard() {
   return (
     <>
       <Heading
-        eyebrow="LET’S MOVE YOU FORWARD"
+        eyebrow="Let’s move you forward"
         title={`Hello, ${me!.profile.name.split(" ")[0]}.`}
       >
         A little clarity. A little momentum. Your next step starts here.
       </Heading>
       <section className="welcome-panel">
         <div>
-          <Badge tone="light">YOUR CAREER, IN MOTION</Badge>
+          <Badge tone="light">Your career, in motion</Badge>
           <h2>
             Turn what you know
             <br />
@@ -42,20 +45,43 @@ export default function Dashboard() {
             Explore opportunities <ArrowRight size={18} />
           </Link>
         </div>
-        <div className="bridge-art" aria-hidden="true">
-          <div className="orbit orbit-one" />
-          <div className="orbit orbit-two" />
-          <div className="art-tile tile-one">
-            <Sparkles />
-            <span>Your skills</span>
-          </div>
-          <div className="art-tile tile-two">
-            <BriefcaseBusiness />
-            <span>New possibilities</span>
-          </div>
-          <div className="bridge-line" />
-          <span className="art-dot" />
-        </div>
+        <nav className="path-card" aria-label="Your path">
+          <h3>Your path</h3>
+          <Link
+            className={`path-step ${me!.profile.skills.length ? "done" : ""}`}
+            to="/profile"
+          >
+            <span className="path-icon">
+              {me!.profile.skills.length ? <Check size={16} /> : <UserRound size={16} />}
+            </span>
+            Add your skills
+            <span>{me!.profile.skills.length} added</span>
+          </Link>
+          <Link className="path-step" to="/skills">
+            <span className="path-icon">
+              <Sparkles size={16} />
+            </span>
+            Back them with evidence
+            <span>Resume</span>
+          </Link>
+          <Link
+            className={`path-step ${applications.data?.total ? "done" : ""}`}
+            to="/opportunities"
+          >
+            <span className="path-icon">
+              {applications.data?.total ? <Check size={16} /> : <BriefcaseBusiness size={16} />}
+            </span>
+            Apply where you fit
+            <span>{applications.data?.total ?? "—"} sent</span>
+          </Link>
+          <Link className="path-step" to="/mentors">
+            <span className="path-icon">
+              <UsersRound size={16} />
+            </span>
+            Close a gap with a mentor
+            <span>Mentors</span>
+          </Link>
+        </nav>
       </section>
       <div className="stats-row">
         <Link to="/profile" className="stat">
@@ -117,7 +143,7 @@ export default function Dashboard() {
           </div>
         </section>
         <aside className="next-step">
-          <span className="eyebrow">MAKE YOUR NEXT MOVE</span>
+          <span className="eyebrow">Make your next move</span>
           <h2>
             A stronger profile.
             <br />A clearer direction.
@@ -130,7 +156,7 @@ export default function Dashboard() {
             Update your profile <ArrowUpRight size={17} />
           </Link>
           <hr />
-          <span className="eyebrow">BETTER, TOGETHER</span>
+          <span className="eyebrow">Better, together</span>
           <p>Find a mentor for the skill you want to build next.</p>
           <Link className="text-link" to="/mentors">
             Meet your mentors <ArrowUpRight size={17} />

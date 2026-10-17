@@ -25,6 +25,7 @@ class UserSkill(BaseModel):
     level: int | None = Field(None, ge=1, le=4)  # system-assessed caps at 3; 4 only from a mentor
     evidence_score: int | None = Field(None, ge=0, le=100)  # null for self_declared
     evidence: list[EvidenceItem]
+    verified_until: datetime | None = None  # set when an independent mentor verified this skill
 
 
 class ResumeStatus(StrEnum):

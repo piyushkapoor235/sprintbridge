@@ -18,7 +18,7 @@ export default function Applications() {
   );
   return (
     <>
-      <Heading eyebrow="EVERY STEP COUNTS" title="My applications">
+      <Heading eyebrow="Every step counts" title="My applications">
         One place to follow your next chapter.
       </Heading>
       <div className="status-legend">

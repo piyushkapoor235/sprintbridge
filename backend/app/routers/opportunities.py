@@ -22,7 +22,7 @@ router = APIRouter(prefix="/opportunities", tags=["opportunities"])
 
 COLUMNS = (
     "id, company_id, title, description, type, visibility, required_skills, compensation_amount, "
-    "currency, pay_period, deadline, status, created_at, organizations(name)"
+    "currency, pay_period, deadline, status, created_at, red_flags, moderation_status, organizations(name)"
 )
 FIT_SORT_WINDOW = 100  # fit ranking considers the newest visible listings matching the filters
 
@@ -37,7 +37,7 @@ def to_summary(row: dict, model=OpportunitySummary, **extra):
         }
     return model(
         **{k: row[k] for k in ("id", "company_id", "title", "type", "visibility", "required_skills",
-                               "deadline", "status", "created_at")},
+                               "deadline", "status", "created_at", "red_flags", "moderation_status")},
         company_name=(row.get("organizations") or {}).get("name", ""),
         compensation=compensation,
         **extra,

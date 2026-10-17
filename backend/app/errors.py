@@ -16,6 +16,7 @@ logger = logging.getLogger("sprintbridge")
 _STATUS_CODES = {
     400: "BAD_REQUEST",
     401: "UNAUTHENTICATED",
+    402: "PAYMENT_REQUIRED",
     403: "FORBIDDEN",
     404: "NOT_FOUND",
     405: "METHOD_NOT_ALLOWED",

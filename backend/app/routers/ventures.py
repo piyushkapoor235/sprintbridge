@@ -1,10 +1,10 @@
-"""Venture Launchpad (stretch, step S18). Acceptance is visible collaboration, not equity or employment."""
+"""Venture Launchpad: founders post a public teaser; full details only for accepted collaborators."""
 
 import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from postgrest import CountMethod
+from postgrest import CountMethod, ReturnMethod
 from supabase import Client
 
 from app.auth import Actor, get_actor
@@ -23,22 +23,42 @@ from app.services.access import display_names
 
 router = APIRouter(tags=["ventures"])
 
-VENTURE_COLUMNS = "id, founder_id, title, problem, industry, stage, needed_skills, created_at"
+# `problem` is not selectable (column grant); it comes from venture_private_details() when allowed.
+VENTURE_COLUMNS = "id, founder_id, title, teaser, industry, stage, needed_skills, compensation_type, created_at"
 REQUEST_COLUMNS = "id, venture_id, requester_id, note, status, created_at, updated_at, ventures(title, founder_id)"
 
 
-def to_ventures(db: Client, rows: list[dict]) -> list[Venture]:
+def to_ventures(db: Client, actor: Actor, rows: list[dict], with_details: bool = False) -> list[Venture]:
     ids = [r["id"] for r in rows]
     accepted: dict[str, int] = {}
+    mine: dict[str, str] = {}
     if ids:
-        # Accepted counts are only visible to founders/requesters under RLS; others see 0.
-        for r in run(db.table("collaboration_requests").select("venture_id").in_("venture_id", ids).eq("status", "accepted")).data:
-            accepted[r["venture_id"]] = accepted.get(r["venture_id"], 0) + 1
+        visible = run(db.table("collaboration_requests").select("venture_id, requester_id, status").in_("venture_id", ids)).data
+        for r in visible:
+            if r["status"] == "accepted":
+                accepted[r["venture_id"]] = accepted.get(r["venture_id"], 0) + 1
+            if r["requester_id"] == str(actor.user_id):
+                mine[r["venture_id"]] = r["status"]
     names = display_names(db, {r["founder_id"] for r in rows})
-    return [
-        Venture(**r, founder_name=names.get(r["founder_id"], "Founder"), accepted_collaborators=accepted.get(r["id"], 0))
-        for r in rows
-    ]
+    out = []
+    for r in rows:
+        problem = run(db.rpc("venture_private_details", {"p_venture_id": r["id"]})).data if with_details else None
+        out.append(Venture(
+            **r,
+            problem=problem,
+            founder_name=names.get(r["founder_id"], "Founder"),
+            accepted_collaborators=accepted.get(r["id"], 0),
+            is_founder=r["founder_id"] == str(actor.user_id),
+            my_request_status=mine.get(r["id"]),
+        ))
+    return out
+
+
+def load_venture(db: Client, venture_id: UUID) -> dict:
+    rows = run(db.table("ventures").select(VENTURE_COLUMNS).eq("id", str(venture_id)).limit(1)).data
+    if not rows:
+        raise ApiError(404, "NOT_FOUND", "Venture not found.")
+    return rows[0]
 
 
 def to_requests(db: Client, rows: list[dict]) -> list[CollaborationRequest]:
@@ -53,17 +73,11 @@ def to_requests(db: Client, rows: list[dict]) -> list[CollaborationRequest]:
     ]
 
 
-def load_venture(db: Client, venture_id: UUID) -> dict:
-    rows = run(db.table("ventures").select(VENTURE_COLUMNS).eq("id", str(venture_id)).limit(1)).data
-    if not rows:
-        raise ApiError(404, "NOT_FOUND", "Venture not found.")
-    return rows[0]
-
-
 @router.get("/ventures")
 def list_ventures(
     q: str | None = Query(None, max_length=100),
     skill: str | None = Query(None, max_length=80),
+    mine: bool = False,
     page: PageParams = Depends(page_params),
     actor: Actor = Depends(get_actor),
     db: Client = Depends(get_db),
@@ -73,19 +87,24 @@ def list_ventures(
         query = query.ilike("title", f"%{term}%")
     if skill and skill.strip():
         query = query.contains("needed_skills", [skill.strip().lower()])
+    if mine:
+        query = query.eq("founder_id", str(actor.user_id))
     result = run(query.order("created_at", desc=True).order("id", desc=True).range(page.offset, page.last_index))
-    return Page(items=to_ventures(db, result.data), page=page.page, page_size=page.page_size, total=result.count)
+    return Page(items=to_ventures(db, actor, result.data), page=page.page, page_size=page.page_size, total=result.count)
 
 
 @router.post("/ventures", status_code=status.HTTP_201_CREATED)
 def create_venture(body: VentureCreate, actor: Actor = Depends(get_actor), db: Client = Depends(get_db)) -> Venture:
-    row = run(db.table("ventures").insert(body.model_dump(mode="json"))).data[0]
-    return to_ventures(db, [load_venture(db, row["id"])])[0]
+    # Minimal return: the inserted row includes `problem`, which is not directly selectable.
+    run(db.table("ventures").insert(body.model_dump(mode="json"), returning=ReturnMethod.minimal))
+    created = run(db.table("ventures").select(VENTURE_COLUMNS).eq("founder_id", str(actor.user_id))
+                  .eq("title", body.title).order("created_at", desc=True).limit(1)).data[0]
+    return to_ventures(db, actor, [created], with_details=True)[0]
 
 
 @router.get("/ventures/{venture_id}")
 def get_venture(venture_id: UUID, actor: Actor = Depends(get_actor), db: Client = Depends(get_db)) -> Venture:
-    return to_ventures(db, [load_venture(db, venture_id)])[0]
+    return to_ventures(db, actor, [load_venture(db, venture_id)], with_details=True)[0]
 
 
 @router.post("/ventures/{venture_id}/requests", status_code=status.HTTP_201_CREATED)
@@ -95,8 +114,12 @@ def request_collaboration(
     venture = load_venture(db, venture_id)
     if venture["founder_id"] == str(actor.user_id):
         raise ApiError(403, "FORBIDDEN", "You cannot request to join your own venture.")
+    if not body.accept_nda:
+        raise ApiError(422, "VALIDATION_ERROR", "Accept the confidentiality terms to send a request.",
+                       {"accept_nda": "Required"})
     row = run(
-        db.table("collaboration_requests").insert({"venture_id": str(venture_id), "note": body.note}),
+        db.table("collaboration_requests").insert(
+            {"venture_id": str(venture_id), "note": body.note, "nda_accepted": True}),
         unique_code="ALREADY_REQUESTED",
     ).data[0]
     return to_requests(db, [{**row, "ventures": {"title": venture["title"], "founder_id": venture["founder_id"]}}])[0]

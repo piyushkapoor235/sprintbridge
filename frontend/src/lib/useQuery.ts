@@ -13,7 +13,9 @@ export function useQuery<T>(path: string | null) {
     if (!path) return;
     const controller = new AbortController();
     setLoading(true);
-    setState({ path });
+    // A reload of the same path keeps showing the current data (no flicker after an action);
+    // a different path never shows another view's data.
+    setState((prev) => (prev.path === path ? { path, data: prev.data } : { path }));
     api<T>(path, { signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) setState({ path, data });

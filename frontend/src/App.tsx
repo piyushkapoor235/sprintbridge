@@ -22,6 +22,11 @@ import {
   X,
   Building2,
   FileSearch,
+  GraduationCap,
+  Rocket,
+  CreditCard,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "./auth";
 import { ErrorMessage, Loading } from "./components/ui";
@@ -35,6 +40,11 @@ import Recruiter from "./pages/Recruiter";
 import Skills from "./pages/Skills";
 import JobFit from "./pages/JobFit";
 import Mentors from "./pages/Mentors";
+import University from "./pages/University";
+import Ventures, { VentureDetail } from "./pages/Ventures";
+import Billing from "./pages/Billing";
+import Verify from "./pages/Verify";
+import Operator from "./pages/Operator";
 
 function Layout() {
   const {
@@ -81,6 +91,8 @@ function Layout() {
     ["/skills", "Skill evidence", Sparkles],
     ["/job-fit", "Explore job fit", FileSearch],
     ["/mentors", "Mentorship", UsersRound],
+    ["/ventures", "Ventures", Rocket],
+    ["/billing", "Plans & billing", CreditCard],
   ] as const;
   return (
     <div className="app">
@@ -102,7 +114,7 @@ function Layout() {
             SprintBridge<span className="brand-dot">.</span>
           </span>
         </Link>
-        <p className="nav-caption">YOUR WORKSPACE</p>
+        <p className="nav-caption">Your workspace</p>
         <nav aria-label="Main navigation">
           {nav.map(([to, label, Icon]) => (
             <NavLink key={to} to={to}>
@@ -116,9 +128,27 @@ function Layout() {
               Recruiter workspace
             </NavLink>
           )}
+          {me.capabilities.includes("mentor") && (
+            <NavLink to="/verify">
+              <ShieldCheck size={19} />
+              Verifier desk
+            </NavLink>
+          )}
+          {me.capabilities.includes("operator") && (
+            <NavLink to="/operator">
+              <ShieldAlert size={19} />
+              Operator console
+            </NavLink>
+          )}
+          {me.capabilities.includes("university_admin") && (
+            <NavLink to="/university">
+              <GraduationCap size={19} />
+              University workspace
+            </NavLink>
+          )}
         </nav>
         <div className="sidebar-note">
-          <span className="small">A LITTLE PROGRESS, EVERY DAY</span>
+          <span className="small">A little progress, every day</span>
           <p>Your next opportunity starts with what you know.</p>
           <Link to="/profile">
             Build your profile <ArrowUpRight size={16} />
@@ -148,6 +178,9 @@ function Layout() {
             Your workspace <span>/</span>{" "}
             <strong>
               {nav.find(([path]) => location.pathname.startsWith(path))?.[1] ||
+                ({ "/university": "University", "/verify": "Verifier desk", "/operator": "Operator console" } as Record<string, string>)[
+                  location.pathname
+                ] ||
                 "Recruiting"}
             </strong>
           </span>
@@ -196,6 +229,12 @@ export default function App() {
         <Route path="opportunities/:id" element={<OpportunityDetail />} />
         <Route path="applications" element={<Applications />} />
         <Route path="recruiter" element={<Recruiter />} />
+        <Route path="university" element={<University />} />
+        <Route path="ventures" element={<Ventures />} />
+        <Route path="ventures/:id" element={<VentureDetail />} />
+        <Route path="billing" element={<Billing />} />
+        <Route path="verify" element={<Verify />} />
+        <Route path="operator" element={<Operator />} />
         <Route path="skills" element={<Skills />} />
         <Route path="job-fit" element={<JobFit />} />
         <Route path="mentors" element={<Mentors />} />

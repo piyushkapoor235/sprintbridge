@@ -62,12 +62,17 @@ def api(tokens):
         headers = {"Authorization": f"Bearer {tokens[who]}"} if who else {}
         return client.request(method, f"/api{path}", headers=headers, **kwargs)
 
-    yield call
-    _cleanup()
-
-
-def _cleanup():
     with psycopg.connect(CFG["DATABASE_URL"]) as conn:
+        started = conn.execute("select now()").fetchone()[0]
+    yield call
+    _cleanup(started)
+
+
+def _cleanup(started):
+    with psycopg.connect(CFG["DATABASE_URL"]) as conn:
+        # Quota usage created by this run only, so the demo accounts keep their real usage.
+        conn.execute("""delete from public.usage_events where created_at >= %s and user_id in
+                        (select id from auth.users where email in ('student@demo.test', 'student2@demo.test'))""", (started,))
         conn.execute("delete from public.applications where opportunity_id in (select id from public.opportunities where title like %s)", (f"{TAG}%",))
         conn.execute("delete from public.campus_drives where opportunity_id in (select id from public.opportunities where title like %s)", (f"{TAG}%",))
         conn.execute("delete from public.opportunities where title like %s", (f"{TAG}%",))
@@ -233,38 +238,48 @@ def test_roster_preview_and_atomic_commit(api, orgs):
 
 def test_mentor_discovery_and_request_flow(api):
     found = api("student", "GET", "/mentors", params={"skill": "Docker"}).json()
-    assert [m["name"] for m in found["items"]] == ["Arjun Mehta"] and found["items"][0]["match_reason"] == "Matches skill: docker"
-    mentor_id = found["items"][0]["id"]
+    arjun = found["items"][0]
+    assert arjun["name"] == "Arjun Mehta" and arjun["mentor_verified"] and arjun["match_reason"] == "Verified expert in docker"
+    paid = api("student2", "POST", "/mentor-requests", json={"mentor_id": arjun["id"], "note": f"{TAG} paid"})
+    assert (paid.status_code, paid.json()["code"]) == (402, "PAYMENT_REQUIRED")  # paid mentor needs a test payment
 
-    created = api("student", "POST", "/mentor-requests", json={"mentor_id": mentor_id, "note": f"{TAG} help with Docker"})
-    assert created.status_code == 201 and created.json()["mentor_name"] == "Arjun Mehta" and created.json()["requester_name"] == "Asha Rao"
+    sara = api("student2", "GET", "/mentors", params={"skill": "react"}).json()["items"][0]
+    assert sara["name"] == "Sara Thomas" and not sara["session_price_inr"]
+    created = api("student2", "POST", "/mentor-requests", json={"mentor_id": sara["id"], "note": f"{TAG} help with React"})
+    assert created.status_code == 201 and created.json()["mentor_name"] == "Sara Thomas" and created.json()["requester_name"] == "Vikram Shah"
     req_id = created.json()["id"]
-    dup = api("student", "POST", "/mentor-requests", json={"mentor_id": mentor_id, "note": f"{TAG} again"})
+    dup = api("student2", "POST", "/mentor-requests", json={"mentor_id": sara["id"], "note": f"{TAG} again"})
     assert (dup.status_code, dup.json()["code"]) == (409, "ALREADY_REQUESTED")
-    assert api("mentor", "POST", "/mentor-requests", json={"mentor_id": mentor_id, "note": f"{TAG} me"}).status_code == 403
+    assert api("mentor2", "POST", "/mentor-requests", json={"mentor_id": sara["id"], "note": f"{TAG} me"}).status_code == 403
 
-    inbox = api("mentor", "GET", "/mentor-requests", params={"scope": "mentor"}).json()
+    inbox = api("mentor2", "GET", "/mentor-requests", params={"scope": "mentor"}).json()
     assert req_id in {r["id"] for r in inbox["items"]}
-    assert api("student", "GET", "/mentor-requests", params={"scope": "mentor"}).status_code == 403
-    assert api("mentor2", "PATCH", f"/mentor-requests/{req_id}", json={"status": "accepted"}).status_code == 404  # cannot even see it
-    assert api("mentor", "PATCH", f"/mentor-requests/{req_id}", json={"status": "accepted"}).json()["status"] == "accepted"
-    assert api("mentor", "PATCH", f"/mentor-requests/{req_id}", json={"status": "declined"}).json()["code"] == "INVALID_TRANSITION"
+    assert api("student2", "GET", "/mentor-requests", params={"scope": "mentor"}).status_code == 403
+    assert api("mentor", "PATCH", f"/mentor-requests/{req_id}", json={"status": "accepted"}).status_code == 404  # cannot even see it
+    assert api("mentor2", "PATCH", f"/mentor-requests/{req_id}", json={"status": "accepted"}).json()["status"] == "accepted"
+    assert api("mentor2", "PATCH", f"/mentor-requests/{req_id}", json={"status": "declined"}).json()["code"] == "INVALID_TRANSITION"
+    done = api("mentor2", "POST", f"/mentor-requests/{req_id}/complete")
+    assert done.status_code == 200 and done.json()["session_status"] == "completed"
 
 
 # --- ventures -------------------------------------------------------------------------
 
 
 def test_venture_collaboration_flow(api):
-    venture = api("student", "POST", "/ventures", json={"title": f"{TAG} Campus food app", "problem": "Hostel food waste",
-                                                         "industry": "Food", "needed_skills": ["React", "react"]})
-    assert venture.status_code == 201 and venture.json()["needed_skills"] == ["react"]
+    venture = api("student2", "POST", "/ventures", json={"title": f"{TAG} Campus food app", "teaser": "Less food waste",
+                                                          "problem": "Private plan", "industry": "Food",
+                                                          "needed_skills": ["React", "react"], "compensation_type": "equity"})
+    assert venture.status_code == 201 and venture.json()["needed_skills"] == ["react"] and venture.json()["problem"] == "Private plan"
     vid = venture.json()["id"]
-    assert api("student", "POST", f"/ventures/{vid}/requests", json={"note": "self"}).status_code == 403
-    req = api("mentor2", "POST", f"/ventures/{vid}/requests", json={"note": "I can build the frontend"}).json()
-    assert api("student2", "PATCH", f"/collaboration-requests/{req['id']}", json={"status": "accepted"}).status_code == 404
-    accepted = api("student", "PATCH", f"/collaboration-requests/{req['id']}", json={"status": "accepted"}).json()
+    assert api("mentor2", "GET", f"/ventures/{vid}").json()["problem"] is None  # teaser only before acceptance
+    assert api("student2", "POST", f"/ventures/{vid}/requests", json={"note": "self", "accept_nda": True}).status_code == 403
+    assert api("mentor2", "POST", f"/ventures/{vid}/requests", json={"note": "x", "accept_nda": False}).status_code == 422
+    req = api("mentor2", "POST", f"/ventures/{vid}/requests", json={"note": "I can build the frontend", "accept_nda": True}).json()
+    assert api("student", "PATCH", f"/collaboration-requests/{req['id']}", json={"status": "accepted"}).status_code == 404
+    accepted = api("student2", "PATCH", f"/collaboration-requests/{req['id']}", json={"status": "accepted"}).json()
     assert accepted["status"] == "accepted" and accepted["requester_name"] == "Sara Thomas"
-    assert api("student", "GET", f"/ventures/{vid}").json()["accepted_collaborators"] == 1
+    assert api("student2", "GET", f"/ventures/{vid}").json()["accepted_collaborators"] == 1
+    assert api("mentor2", "GET", f"/ventures/{vid}").json()["problem"] == "Private plan"  # details after acceptance
     assert vid in ids(api("mentor", "GET", "/ventures", params={"skill": "react"}))
 
 
@@ -314,7 +329,8 @@ def test_resume_to_fit_report(api, monkeypatch):
     assert api("student", "POST", "/me/resume", files={"file": ("x.pdf", b"not a pdf", "application/pdf")}).status_code == 422
 
     skills = {s["skill"]: s for s in api("student", "GET", "/me/skills").json()["items"]}
-    assert skills["python"]["label"] == "system_assessed" and skills["python"]["evidence_score"] == 15 + 15 + 15
+    # Python may already be mentor-verified (which outranks system-assessed); the evidence score is the same.
+    assert skills["python"]["label"] in ("system_assessed", "mentor_verified") and skills["python"]["evidence_score"] == 15 + 15 + 15
     assert skills["docker"]["evidence_score"] == 5 and "rust" not in skills  # stuffing capped; fabricated skill dropped
     assert all(s["evidence_score"] is None or s["evidence_score"] < 100 for s in skills.values())  # injection had no effect
 
@@ -324,7 +340,8 @@ def test_resume_to_fit_report(api, monkeypatch):
     fit = api("student", "GET", f"/jds/{jd.json()['id']}/fit").json()
     by_skill = {i["skill"]: i["bucket"] for i in fit["items"]}
     assert by_skill == {"python": "strong", "docker": "under_evidenced", "airflow": "missing"}
-    assert fit["fit_percent"] == round(100 * (2 * 0.8 + 0) / 5)
+    confidence = 1.0 if skills["python"]["label"] == "mentor_verified" else 0.8
+    assert fit["fit_percent"] == round(100 * (2 * confidence + 0) / 5)
     assert api("student2", "GET", f"/jds/{jd.json()['id']}").status_code == 404  # private to its owner
 
 

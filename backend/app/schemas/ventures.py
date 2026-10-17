@@ -14,12 +14,22 @@ class VentureStage(StrEnum):
     revenue = "revenue"
 
 
+class CompensationType(StrEnum):
+    paid = "paid"
+    stipend = "stipend"
+    equity = "equity"
+    unpaid = "unpaid"
+    to_discuss = "to_discuss"
+
+
 class VentureCreate(InputModel):
     title: str = Field(min_length=1, max_length=200)
-    problem: str = Field(min_length=1, max_length=4000)
+    teaser: str = Field(min_length=1, max_length=280)  # public
+    problem: str = Field(min_length=1, max_length=4000)  # private: founder + accepted collaborators
     industry: str = Field(min_length=1, max_length=120)
     stage: VentureStage = VentureStage.idea
     needed_skills: SkillList = []
+    compensation_type: CompensationType = CompensationType.to_discuss
 
 
 class Venture(BaseModel):
@@ -27,11 +37,15 @@ class Venture(BaseModel):
     founder_id: UUID
     founder_name: str
     title: str
-    problem: str
+    teaser: str
+    problem: str | None  # null unless the caller is the founder or an accepted collaborator
     industry: str
     stage: VentureStage
     needed_skills: list[str]
+    compensation_type: CompensationType
     accepted_collaborators: int
+    is_founder: bool
+    my_request_status: str | None
     created_at: datetime
 
 
@@ -42,6 +56,7 @@ class CollaborationScope(StrEnum):
 
 class CollaborationRequestCreate(InputModel):
     note: str = Field(min_length=1, max_length=1000)
+    accept_nda: bool  # must be true: details are shared in confidence once accepted
 
 
 class CollaborationRequest(BaseModel):

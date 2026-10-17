@@ -76,7 +76,7 @@ class JdExtraction(BaseModel):
 def _client() -> anthropic.Anthropic:
     key = get_settings().anthropic_api_key
     if not key:
-        raise ApiError(503, "SERVICE_UNAVAILABLE", "Skill analysis is not configured on this server.")
+        raise ApiError(503, "SERVICE_UNAVAILABLE", "Resume and job-fit analysis is switched off on this server right now. Your manual skills and skill coverage still work.")
     return anthropic.Anthropic(api_key=key, timeout=90.0, max_retries=2)
 
 

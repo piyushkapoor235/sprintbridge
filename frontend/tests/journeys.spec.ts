@@ -217,7 +217,7 @@ test("student edits profile, applies once, and sees a persisted tracker", async 
     .getByRole("link", { name: "My applications", exact: true })
     .click();
   await expect(
-    page.getByRole("cell", { name: "applied", exact: true }),
+    page.getByRole("cell", { name: "Applied", exact: true }),
   ).toBeVisible();
   expect(state.errors).toEqual([]);
 });
@@ -249,7 +249,7 @@ test("recruiter status changes persist and organization changes clear applicants
   await expect(
     page.getByRole("button", { name: "Shortlist", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByText("shortlisted", { exact: true })).toBeVisible();
+  await expect(page.getByText("Shortlisted", { exact: true })).toBeVisible();
   await page.getByLabel("Active organization").selectOption("company-2");
   await page.getByRole("button", { name: "Applicants", exact: true }).click();
   await expect(

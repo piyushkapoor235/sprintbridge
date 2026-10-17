@@ -810,7 +810,6 @@ nav a.active svg {
   background: #eef1f5;
   color: var(--ink-2);
   line-height: 1.5;
-  text-transform: capitalize;
   white-space: nowrap;
 }
 .badge.light {
@@ -1774,4 +1773,70 @@ code {
 }
 .plan .notice.test-pay strong {
   align-self: flex-start;
+}
+.auth-tabs {
+  margin-bottom: 26px;
+  flex-direction: row;
+}
+.auth-tabs a {
+  padding: 7px 16px;
+  border-radius: var(--pill);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-mute);
+  white-space: nowrap;
+}
+.auth-tabs a:hover {
+  color: var(--ink);
+}
+.auth-tabs a[aria-current="page"] {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(13, 37, 61, 0.12);
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--primary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-button:hover {
+  color: var(--primary-deep);
+}
+.sent-state {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.share-id {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 22px 14px 80px;
+  margin-top: -8px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 13px;
+  color: var(--ink-mute);
+}
+.share-id code {
+  overflow-wrap: anywhere;
+}
+.share-id .secondary {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+@media (max-width: 680px) {
+  .share-id {
+    padding: 10px 16px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

@@ -85,7 +85,10 @@ function RecruiterWorkspace({ company }: { company: string }) {
           {jobs.loading && <Loading />}
           <div className="listing-list">
             {jobs.data?.items.map((job) => (
-              <OpportunityRow key={job.id} item={job} />
+              <div key={job.id}>
+                <OpportunityRow item={job} />
+                {job.visibility === "campus" && <ShareDriveId id={job.id} />}
+              </div>
             ))}
             {jobs.data?.items.length === 0 && (
               <Empty title="Make room for new talent">
@@ -285,5 +288,28 @@ function RecruiterWorkspace({ company }: { company: string }) {
         </section>
       )}
     </>
+  );
+}
+
+/** Campus listings stay hidden until a university authorizes a drive with this ID. */
+function ShareDriveId({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="share-id">
+      <span>
+        Campus listing · share this ID with a university so it can authorize a drive:{" "}
+        <code>{id}</code>
+      </span>
+      <button
+        className="secondary"
+        onClick={async () => {
+          await navigator.clipboard.writeText(id).catch(() => {});
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        }}
+      >
+        {copied ? "Copied" : "Copy ID"}
+      </button>
+    </div>
   );
 }

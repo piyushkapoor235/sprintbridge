@@ -1,0 +1,9 @@
+# Runtime dependencies (versions verified 18 October 2026).
+fastapi==0.143.3
+uvicorn[standard]==0.54.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
+supabase==2.33.0
+python-multipart==0.0.32
+anthropic==1.15.0
+pypdf==6.21.1

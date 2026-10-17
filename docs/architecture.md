@@ -2,9 +2,9 @@
 
 Design draft · 17 October 2026 · Four teammates · 12-hour hackathon
 
-This document defines the complete system structure before implementation. It covers the five-pillar product and identifies what belongs in the hackathon versus later releases. It does not create application code, cloud resources, or deployments. Execution schedule: [hackathon plan](../tasks/plan.md). Assigned tasks: [checklist](../tasks/todo.md).
+This document defines the complete system structure before implementation. It covers the five-pillar product and identifies what belongs in the hackathon versus later releases. It does not create application code, cloud resources, or deployments. Execution schedule: [hackathon plan](../plan.md). Sequential steps: [checklist](../todo.md).
 
-Compared with the seven supplied hackathon documents on 17 October 2026. Useful concepts are incorporated below; conflicting product/time/auth assumptions are not. See [comparison and merge decisions](architecture-comparison.md) for source attribution, accepted changes, deferred features, and unavailable referenced documents.
+Compared with the seven supplied hackathon documents on 17 October 2026. Useful concepts are incorporated below; conflicting product/time/auth assumptions are not. The comparison and merge-decision notes (`architecture-comparison.md`) are not in this repo; they covered source attribution, accepted changes, deferred features, and unavailable referenced documents.
 
 ## 1. Architecture decision
 
@@ -21,11 +21,12 @@ Keep business operations behind FastAPI. The browser talks directly to Supabase 
 | Backend | Python + FastAPI + Pydantic + Uvicorn | Typed HTTP endpoints, access checks, business services |
 | Identity | Supabase Auth | Authentication and session lifecycle |
 | Persistence | Supabase Free PostgreSQL | Shared relational data and constraints |
-| Database access | Supabase Python client using caller JWT | User-scoped database reads and function calls |
+| Database access | Supabase Python client using caller JWT; one narrow service client for server-owned tables | User-scoped reads, writes and function calls under RLS. Only `resumes`, `skill_evidence` and `job_requirements` are written with the secret key ([api-contract.md](api-contract.md) §5). |
 | Hosting | Render static frontend and Python service, Free tiers | Separate frontend/API deployment with shared database |
+| Skill extraction | Claude API via the Anthropic Python SDK, inside FastAPI (`services/llm.py`) | Resume/JD → structured skills with cited evidence; see [skill-intelligence.md](skill-intelligence.md) |
 | Tests | Frontend build/manual journey checks; pytest and database integration checks | Verify demo behavior and critical access boundaries |
 
-There is no cache server, broker, search cluster, separate AI service, microservice deployment, or custom password database in this design. Later modules can be added inside the same application.
+There is no cache server, broker, search cluster, separate AI service, microservice deployment, or custom password database in this design. LLM calls run inside the existing FastAPI app. **The LLM extracts with cited evidence; it never scores.** All scores and fit values come from deterministic Python formulas. Later modules can be added inside the same application.
 
 ## 2. Whole-system view
 
@@ -123,7 +124,7 @@ Each page imports shared controls and API helpers; it must not create its own na
 
 Shared UI: Button, Input, Select, Card, Table, StatusBadge, EmptyState, LoadingState, ErrorMessage, AppLayout, ProtectedRoute. Keep styling uniform and keyboard-usable. Reserve academic details for authorized university views rather than the public profile component.
 
-**Evidence labels:** show `Self-declared skills`, `Portfolio link supplied` when present, and `University record verified` only where an actual verified roster link exists. A GitHub/demo URL does not prove the claimed skills and never creates a `Skill verified` badge. Accept only valid HTTP(S) portfolio URLs; render user text as text, open external links safely, and do not fetch/scrape links on the server. Multiple artifacts, reviewer-issued credentials, and private sharing are deferred.
+**Evidence labels:** show `Self-declared skills`, `Portfolio link supplied` when present, and `University-claimed` (not "verified") where a roster link exists. The roster CSV is university-supplied and can be fabricated. Only externally fetched academic records and independently assigned verifiers earn `Verified` labels (post-hackathon; see the trust ladder in [threat-model.md](threat-model.md) §1–2). Skills carry one of three labels: `Self-declared`, `System-assessed · level N · score` (evidence the engine found in an uploaded resume, or later in OAuth-connected GitHub), or `Mentor-verified` (granted only by an independently assigned mentor). The system never labels its own output "verified" ([skill-intelligence.md](skill-intelligence.md) §1). A GitHub/demo URL alone does not prove the claimed skills and never creates a verified badge. Accept only valid HTTP(S) portfolio URLs; render user text as text, open external links safely, and do not scrape portfolio links on the server. GitHub is read only through the user's OAuth connection (post-hackathon), and a pasted JD URL is fetched once as text with a timeout ([skill-intelligence.md](skill-intelligence.md) §3.2, §6). Multiple artifacts, reviewer-issued credentials, and private sharing are deferred.
 
 ## 5. Python backend architecture — shared modules
 
@@ -164,7 +165,7 @@ Use UUID primary keys, foreign keys, UTC timestamps, and constrained status valu
 | `ventures` — stretch | `id`, `founder_id`, `title`, `problem`, `industry`, `stage`, `needed_skills[]` | Founder owns changes |
 | `collaboration_requests` — stretch | `id`, `venture_id`, `requester_id`, `note`, `status` | Unique requester/venture; accepted rows represent team membership in demo |
 
-`auth.users` is managed by Supabase. The ten core application tables above exclude the two stretch tables and managed Auth tables. In this architecture, `role_grants` makes privileged capabilities explicit instead of embedding them in an editable profile.
+`auth.users` is managed by Supabase. `profiles.skills[]` stays self-declared permanently. Post-hackathon verified skills, academic records, subscriptions and payments live in separate server-owned tables ([threat-model.md](threat-model.md) §12, [business-model.md](business-model.md) §5). The ten core application tables above exclude the two stretch tables and managed Auth tables. The hackathon skill-intelligence slice adds four server-written tables: `resumes`, `skill_evidence`, `job_requirements`, `external_jds` ([skill-intelligence.md](skill-intelligence.md) §11). This is an agreed exception to the ten-table core. In this architecture, `role_grants` makes privileged capabilities explicit instead of embedding them in an editable profile.
 
 ```mermaid
 erDiagram
@@ -256,7 +257,9 @@ Map 401 to login required, 403 to prohibited action, 404 to missing/not-visible 
 | `PATCH /me` | Allowlisted profile patch → saved profile | P2 | P1 |
 | `GET /opportunities` | Search/type/page filters → only visible listing summaries | P2 | P1 |
 | `POST /opportunities` | Authorized company context + listing fields → saved listing | P2 | P1 |
-| `GET /opportunities/{id}` | Authorized listing + applicant-specific `skill_coverage` object | P2 | P1 |
+| `GET /opportunities/{id}` | Authorized listing + applicant-specific `skill_coverage` object (fallback when no analysis exists) | P2 | P1 |
+| `POST /me/resume`, `GET /me/skills` | Resume upload → evidence-backed skills with labels and "why" | P2 | P1 |
+| `GET /opportunities/{id}/fit`, `POST /jds`, `GET /jds/{id}/fit` | Fit score + gap report for a listing or a pasted JD ([skill-intelligence.md](skill-intelligence.md) §5–7) | P2 | P1/P4 |
 | `POST /opportunities/{id}/applications` | Optional drive ID → saved application | P2, uses P3 rules | P1/P3 |
 | `GET /applications` | Validated scope/workspace/page → appropriate application projection | P2 | P1/P3 |
 | `PATCH /applications/{id}` | Allowed status only → saved application | P2 | P1 recruiter UI |
@@ -306,7 +309,7 @@ Adopt the supplied architecture's distinction between a hard gate and explainabl
 3. **Next action:** each missing skill offers `Find a mentor for this skill`, linking to `/mentors?skill=<encoded-skill>`. P4 filters visible active mentors by normalized linked-profile skills; deterministic ordering by mentor name then ID is enough. Show the matched skill as the reason. No match produces an honest empty state with a link to general niche discovery.
 4. **Editable request:** on the mentor page, optionally prefill the existing request note with `I'd like guidance on [skill] for [opportunity title].` Only use opportunity context already authorized for the caller. The student reviews/edits and explicitly submits through the existing request endpoint; no automatic outreach or new messaging system is introduced.
 
-P2 owns the skill-coverage response/calculation; P1 renders it and the next-action link; P3 owns the independent authoritative eligibility gate; P4 owns mentor filtering and the existing request flow. Deduplicate/case-normalize skills consistently. Test no requirements, no matches, all matches, duplicate/case variants, and high coverage with failed campus eligibility. Do not import arbitrary must/preferred/experience weights, proof-of-work bonuses, or LLM scoring.
+P2 owns the skill-coverage response/calculation; P1 renders it and the next-action link; P3 owns the independent authoritative eligibility gate; P4 owns mentor filtering and the existing request flow. Deduplicate/case-normalize skills consistently. Test no requirements, no matches, all matches, duplicate/case variants, and high coverage with failed campus eligibility. Do not import arbitrary undocumented weights or LLM-produced scores. **Superseded where a resume analysis exists:** the fit formula in [skill-intelligence.md](skill-intelligence.md) §5.2 adds required/preferred weights, levels, and label confidence (verified 1.0 / system-assessed 0.8 / declared 0.3). It is still deterministic, shown to the user, and unit-tested with a worked example. This count-based coverage remains the fallback.
 
 ### Retry and transition rules
 
@@ -339,7 +342,7 @@ Alternatively, the student arrives from an opportunity's missing-skill link, see
 
 ### Venture Launchpad
 
-Founder posts problem, industry, stage and required skills → student discovers idea → submits collaboration note → founder accepts/declines → accepted requests form a visible accepted-collaborator list. This does not establish equity or employment. Include only if the primary application journey passes the hour-6 integration gate.
+Founder posts problem, industry, stage and required skills → student discovers idea → submits collaboration note → founder accepts/declines → accepted requests form a visible accepted-collaborator list. This does not establish equity or employment. Built only as stretch step S18, after Checkpoint D.
 
 ## 10. Repository and ownership boundaries
 
@@ -360,24 +363,29 @@ sprintbridge/
 │   └── package.json                  # P1 owns dependency edits
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                   # P2: root router registration
-│   │   ├── auth.py                   # P2
-│   │   ├── db.py                     # P2: request-scoped client
-│   │   ├── routers/                  # Domain owners
-│   │   ├── schemas/                  # Domain owners
+│   │   ├── main.py                   # P2: app factory, middleware, router registration
+│   │   ├── config.py                 # P2: environment settings
+│   │   ├── auth.py                   # P2: verified caller
+│   │   ├── db.py                     # P2: request-scoped client + narrow service client
+│   │   ├── errors.py                 # P2: single error shape
+│   │   ├── pagination.py             # P2: list envelope
+│   │   ├── routers/                  # Domain owners; one module per domain
+│   │   ├── schemas/                  # Domain owners; Pydantic contract models
 │   │   └── services/                 # Domain owners
-│   ├── tests/                        # Each owner tests their feature
+│   ├── tests/                        # Each owner tests their feature; contract test
 │   └── requirements.txt              # P2 owns dependency edits
 ├── database/
-│   ├── migrations/                   # P3 integrates SQL; P2 reviews permissions
-│   ├── seed.py                       # P3; credentials supplied privately
+│   ├── migrations/0001–0009_*.sql    # P3 integrates SQL; P2 reviews permissions
+│   ├── tests/                        # schema + RLS tests on local Postgres
+│   ├── seed.py                       # S05; credentials supplied privately
 │   └── fixtures/                     # P3 synthetic data/shared rule cases
 ├── demo/                             # P4 coordinates, all contribute
-├── docs/architecture.md
-└── tasks/
+├── docs/                             # architecture, api-contract, threat model, skill engine, business model
+├── plan.md
+└── todo.md
 ```
 
-These are proposed paths, not an implemented scaffold. Domain owners can edit their module files in parallel; shared root/config files have a single editor. No module gets its own independent database or login system.
+The backend, database and docs paths exist as a scaffold (S01–S03); frontend and demo paths are still proposed. Each file is edited only within the step that owns it, one step at a time ([todo.md](../todo.md)); shared root/config files change only in their scheduled step. No module gets its own independent database or login system.
 
 ## 11. Four-person responsibility and handoff matrix
 
@@ -388,9 +396,13 @@ These are proposed paths, not an implemented scaffold. Domain owners can edit th
 | **P3** | Schema/seeds/migrations, CSV, eligibility, campus UI/API/reporting | Seed dataset, drive/eligibility payload, university page, transactional rule operations | P2 authenticated actor/helper; P1 shared UI | Roster → eligible application → accurate scoped report works |
 | **P4** | Mentor UI/API; optional venture UI/API; demo assets | Skill-filtered mentor page and editable request, router exports, script/video and buyer story | P2 access helper; P3 tables; P1 shared UI | Skill gap → mentor request → owner acceptance persists; demo shows only working features |
 
+Skill-intelligence slice ([skill-intelligence.md](skill-intelligence.md) §13):
+- S16 (P2 drives, P3 checks): `services/llm.py`, extraction, `resumes`/`skill_evidence` tables + RLS, skills page.
+- S17 (P2 then P1, P4 checks): fit/gap formula, `job_requirements`/`external_jds`, pasted-JD and fit/gap pages, gap → mentor results with Mentor-verified first.
+
 P2 defines shared auth and permissions patterns; domain owners implement the checks for their operations. P3 integrates database changes rather than becoming responsible for inventing every other person's business rules. Each owner supplies their field needs, SQL requirements, and tests by the first-hour contract checkpoint.
 
-Person 1 merges frontend route additions; Person 2 merges backend router additions; Person 3 integrates migrations in order. Use small working merges at hours 2/4/6/8. Shared schema and example responses are agreed by hour 1. At hour 2, all teammates have a seeded account and working authenticated database read. At hour 6, the main multi-role application flow must pass. At hour 9, freeze features.
+Build runs as strict sequential steps S01–S20 ([plan.md](../plan.md) §4, [todo.md](../todo.md)). One step is open at a time; its Driver is the only repo editor; it merges to `main` before the next step starts. Migrations are numbered in step order, so no two branches touch the same file. Contract and example responses are frozen in S01. Checkpoint A (S06): deployed login and authenticated read. Checkpoint B (S10): public journey. Checkpoint C (S13): campus journey. Checkpoint D (S15): core complete. Features freeze at S19.
 
 ## 12. Deployment and environment architecture
 
@@ -403,7 +415,7 @@ flowchart LR
     Back -->|Caller-scoped queries and RPC| PG[(Supabase PostgreSQL)]
 ```
 
-Frontend configuration: `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. Vite-prefixed values are public in the build. Backend configuration: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `ALLOWED_ORIGINS`. Controlled seed/setup may separately need a privileged Supabase secret, stored outside Git and excluded from frontend/deployed request handling.
+Frontend configuration: `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. Vite-prefixed values are public in the build. Backend configuration: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `ALLOWED_ORIGINS`, and `SUPABASE_SECRET_KEY`. The secret key is stored outside Git and used only by seed/setup and by `db.service_client()` for the three server-owned tables. It is never used for user-scoped reads and never reaches the frontend.
 
 Set allowed origins to the actual deployed frontend and local development origin. Do not wildcard away browser errors. Configure static hosting to serve the SPA entry for application routes. Database schema/seed files are versioned; credentials are not. Do not write persistent data into Render's ephemeral backend filesystem.
 
@@ -444,7 +456,10 @@ The architecture accommodates all five pillars without making every advanced fea
 | Expanded portfolios | Profiles | Portfolio items, optional private storage, normalized skills and evidence provenance |
 | Notifications | Shared operations | In-app records, transactional outbox, retryable email worker |
 | Public moderation | Operations | Abuse reports, moderation decisions, audit history |
-| Organization subscriptions | Commercial operations | Plan entitlements and invoicing; payment integration only when needed |
+| Subscriptions for every actor | Commercial operations | Plans, entitlements, usage counters, payments, escrow payouts — see [business-model.md](business-model.md) |
+| External academic verification | University/eligibility | DigiLocker/NAD issuer fetch, roster discrepancy checks, university data-trust score, audit sampling — see [threat-model.md](threat-model.md) §2 |
+| Independent skill verification | Profiles/mentorship | Conflict-checked random verifier assignment, calibration, audits, expiring badges — see [threat-model.md](threat-model.md) §4 |
+| Trust and safety | Operations | Org/KYC onboarding, abuse reports, anomaly detection, audit events, appeals — see [threat-model.md](threat-model.md) §3, §11 |
 | Venture team management | Ventures | Team memberships, roles, invitations; investor introductions remain later |
 | Real-time updates/search | Existing domains | Add subscriptions/indexing only after a measured need |
 
@@ -458,6 +473,9 @@ Keep one database and modular backend until actual load, team boundaries, or ope
 - Eligibility evaluation is one database predicate called by the Python service and atomic submission operation. Python remains the application backend.
 - The existing hackathon endpoints remain; venture detail is specified explicitly, and database write protections cover bypass attempts through the Data API.
 - Venture collaboration is designed here but remains a time-gated stretch deliverable. All advanced product capabilities are documented as extensions, not silently added to the 12-hour workload.
-- The supplied architecture comparison adds explicit public/campus visibility, reproducible skill coverage separate from eligibility, a missing-skill-to-mentor action, evidence provenance labels, and a compact buyer/demo story. It retains the ten-table core and existing request endpoints; no AI service, 20-table expansion, or role-bypass login is introduced.
+- The supplied architecture comparison adds explicit public/campus visibility, reproducible skill coverage separate from eligibility, a missing-skill-to-mentor action, evidence provenance labels, and a compact buyer/demo story. It retains the ten-table core and existing request endpoints; no separate AI service, 20-table expansion, or role-bypass login is introduced.
+- [skill-intelligence.md](skill-intelligence.md) adds Claude-based extraction inside FastAPI (the LLM extracts, code scores), the fit formula, gap reports, and four hackathon tables. Built as cut-able steps S16–S17; if cut, fall back to manual skills and count coverage. GitHub analysis, 48-hour proof plans and recruiter outreach are post-hackathon.
+
+- [threat-model.md](threat-model.md) treats university roster data as university-claimed rather than verified, and catalogues abuse across every module. [business-model.md](business-model.md) defines subscription plans per actor. Neither adds a hackathon dependency.
 
 Before implementation, the team reviews this diagram, schema, endpoint examples, and owner matrix together for 15–20 minutes. The first connected implementation milestone remains authenticated login → real profile/listing read, followed by the complete application journey.

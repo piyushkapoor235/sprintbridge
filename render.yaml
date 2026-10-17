@@ -1,0 +1,24 @@
+# Render Blueprint for the backend (Free plan). Create it from the Render dashboard:
+# New → Blueprint → this repository. Secrets are entered in the dashboard (sync: false), never committed.
+services:
+  - type: web
+    name: sprintbridge-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false  # the deployed frontend URL, comma-separated with http://localhost:5173
+      - key: ANTHROPIC_API_KEY
+        sync: false  # optional: resume/JD analysis returns 503 without it

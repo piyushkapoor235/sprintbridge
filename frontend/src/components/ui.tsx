@@ -80,7 +80,12 @@ export function Badge({
   children: ReactNode;
   tone?: string;
 }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
+  // Sentence case: capitalize only the first letter of plain-text badges ("offered" -> "Offered").
+  const content =
+    typeof children === "string" && children
+      ? children[0].toUpperCase() + children.slice(1).replaceAll("_", " ")
+      : children;
+  return <span className={`badge ${tone}`}>{content}</span>;
 }
 export function Tags({ items }: { items: string[] }) {
   return (

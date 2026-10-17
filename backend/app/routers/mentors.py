@@ -44,8 +44,10 @@ def to_requests(db: Client, rows: list[dict]) -> list[MentorRequest]:
             **{k: r[k] for k in ("id", "mentor_id", "requester_id", "note", "status", "created_at", "updated_at")},
             session_status=r.get("session_status", "pending"),
             price_inr=pay["amount_inr"] if pay else None,
-            # Mentors cannot read the requester's payment row; they only learn that the session is paid.
-            payment_status=pay["status"] if pay else ("paid" if r.get("payment_id") else None),
+            # Mentors cannot read the requester's payment row. A declined paid request is always refunded
+            # (database trigger), so that state is reported without exposing the payment itself.
+            payment_status=pay["status"] if pay else (
+                None if not r.get("payment_id") else "refunded" if r["status"] == "declined" else "paid"),
             mentor_name=names.get(mentor_users.get(r["mentor_id"], ""), "Mentor"),
             requester_name=names.get(r["requester_id"], "Member"),
         ))

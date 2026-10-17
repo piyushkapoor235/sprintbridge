@@ -30,10 +30,12 @@ database/
   tests/            schema + row-security tests on a throwaway local Postgres
   fixtures/         synthetic sample data (students.csv)
 docs/               design documents and API contract
-frontend/           added in step S06
+frontend/           React/TypeScript app; setup and verification in frontend/README.md
 ```
 
 ## Backend: run and test
+
+Frontend setup: [frontend/README.md](frontend/README.md). Person 1's implementation and remaining live checks are tracked in [tasks/todo.md](tasks/todo.md).
 
 ```bash
 cd backend

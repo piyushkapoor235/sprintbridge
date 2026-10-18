@@ -17,6 +17,7 @@ from app.routers import (
     health,
     me,
     mentors,
+    onboarding,
     opportunities,
     skills,
     trust,
@@ -71,7 +72,7 @@ def create_app() -> FastAPI:
 
     for module in (
         health, me, opportunities, applications, university, drives, mentors, skills, ventures,
-        verification, billing, trust,
+        verification, billing, trust, onboarding,
     ):
         app.include_router(module.router, prefix="/api")
 

@@ -44,6 +44,25 @@ TABLES = [
 ]
 
 
+# Undo what operator approvals granted (migration 0018), then forget the applications, so a rehearsal
+# can show onboarding from scratch. Seed users, organizations and roles are re-created by seed.py.
+UNDO_APPROVALS = [
+    ("""delete from public.memberships m using public.role_applications a
+        where a.status = 'approved' and a.user_id = m.user_id and a.organization_id = m.organization_id""",
+     "approved memberships"),
+    ("""delete from public.mentors m using public.role_applications a
+        where a.status = 'approved' and a.kind = 'mentor' and a.user_id = m.user_id""", "approved mentors"),
+    ("""delete from public.role_grants g using public.role_applications a
+        where a.status = 'approved' and a.kind = 'mentor' and a.user_id = g.user_id and g.role = 'mentor'""",
+     "approved mentor grants"),
+    ("""delete from public.organizations o
+        where o.id in (select organization_id from public.role_applications where status = 'approved')
+          and not exists (select 1 from public.memberships m where m.organization_id = o.id)""",
+     "approved-only orgs"),
+    ("delete from public.role_applications", "role_applications"),
+]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--yes", action="store_true", help="confirm: delete all demo activity")
@@ -55,6 +74,8 @@ def main() -> int:
     load_env()
 
     with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+        for sql, label in UNDO_APPROVALS:
+            print(f"clear  {label:<24} {conn.execute(sql).rowcount}")
         for table in TABLES:
             deleted = conn.execute(f"delete from public.{table}").rowcount
             print(f"clear  {table:<24} {deleted}")

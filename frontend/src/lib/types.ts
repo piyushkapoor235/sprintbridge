@@ -290,3 +290,30 @@ export interface JobDescription {
   requirements: { skill: string; kind: string; min_level: number; quote: string | null }[];
   red_flags: string[];
 }
+export type RoleKind = "recruiter" | "university_admin" | "mentor";
+export interface RoleApplication {
+  id: string;
+  kind: RoleKind;
+  organization_name: string | null;
+  job_title: string;
+  website: string | null;
+  niche: string | null;
+  experience_summary: string;
+  status: "pending" | "approved" | "rejected";
+  decision_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}
+export interface PendingRoleApplication {
+  id: string;
+  kind: RoleKind;
+  organization_name: string | null;
+  job_title: string;
+  website: string | null;
+  niche: string | null;
+  experience_summary: string;
+  created_at: string;
+  applicant_name: string;
+  applicant_email: string | null;
+  existing_organization: string | null;
+}

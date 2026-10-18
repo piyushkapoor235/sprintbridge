@@ -23,6 +23,17 @@ function friendly(err: unknown): unknown {
   return code && AUTH_MESSAGES[code] ? new Error(AUTH_MESSAGES[code]) : err;
 }
 
+// Chosen at sign-up. Students, job seekers and founders can start straight away; recruiter, university and
+// mentor access is granted only after an operator approves an application (Roles & access page).
+export const JOINING_AS: Record<string, [string, string]> = {
+  student: ["Student", "Your university links your account to its placement roster by email."],
+  job_seeker: ["Job seeker / professional", "Browse openings, check your fit and find mentors."],
+  founder: ["Founder", "Post your venture and invite collaborators. No approval needed."],
+  recruiter: ["Recruiter / company", "After signing in, apply for recruiter access; an operator verifies your company."],
+  university_admin: ["University placement office", "After signing in, apply for university access; an operator verifies your college."],
+  mentor: ["Mentor", "After signing in, apply as a mentor; an operator reviews your experience."],
+};
+
 export default function Login() {
   const { session } = useAuth();
   const [params, setParams] = useSearchParams();
@@ -32,6 +43,7 @@ export default function Login() {
   const [notice, setNotice] = useState("");
   const [unconfirmed, setUnconfirmed] = useState("");
   const [busy, setBusy] = useState(false);
+  const [joiningAs, setJoiningAs] = useState("student");
   if (session) return <Navigate to="/dashboard" replace />;
 
   const switchTo = (next: "signin" | "signup") => {
@@ -133,7 +145,8 @@ export default function Login() {
               <p className="eyebrow">Join SprintBridge</p>
               <h2>Create your account.</h2>
               <p className="muted">
-                For students and job seekers. Companies, universities and mentors are onboarded by our team.
+                For students, job seekers, founders, recruiters, universities and mentors. Recruiter, university and
+                mentor access opens after our team verifies you.
               </p>
             </>
           )}
@@ -252,7 +265,7 @@ export default function Login() {
                     email,
                     password,
                     options: {
-                      data: { name: String(data.get("name")).trim() },
+                      data: { name: String(data.get("name")).trim(), joining_as: String(data.get("joining_as")) },
                       emailRedirectTo: `${window.location.origin}/login`,
                     },
                   });
@@ -272,6 +285,17 @@ export default function Login() {
               <label>
                 Full name
                 <input name="name" autoComplete="name" required maxLength={120} placeholder="Your name" />
+              </label>
+              <label>
+                I'm joining as
+                <select name="joining_as" value={joiningAs} onChange={(e) => setJoiningAs(e.target.value)}>
+                  {Object.entries(JOINING_AS).map(([value, [label]]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <small className="muted">{JOINING_AS[joiningAs][1]}</small>
               </label>
               <label>
                 Email address

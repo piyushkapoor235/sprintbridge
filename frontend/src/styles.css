@@ -1853,3 +1853,13 @@ code {
 .skill-grid > .panel {
   margin: 0;
 }
+.role-choice {
+  align-items: flex-start;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.role-choice svg {
+  color: var(--primary);
+}

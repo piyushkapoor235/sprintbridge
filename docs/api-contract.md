@@ -96,6 +96,8 @@ The frontend branches on `code`, never on `detail`.
 | POST | /api/me/resume | S16 | Signed in | multipart: `file` (PDF ≤ 5 MB; scanned PDFs are OCR'd) | `201 ResumeUploadResult` (`text_source`: pdf / ocr / cached) |
 | GET | /api/me/skills | S16 | Signed in | — | `SkillsResponse` (each skill has a `category`) |
 | GET | /api/me/recommendations | Ext | Signed in | `limit?` (1–20) | `Recommendation[]`: open listings ranked by fit against the caller's evidence, with matching/missing skills (no LLM call) |
+| GET | /api/me/role-applications | Ext | Signed in | — | `RoleApplication[]`: the caller's applications to become a recruiter, university admin or mentor, with status and decision note |
+| POST | /api/me/role-applications | Ext | Signed in | `RoleApplicationCreate` (`kind`: recruiter / university_admin / mentor; `organization_name` for recruiter and university_admin, `niche` for mentor) | `201 RoleApplication` (pending). `409 ALREADY_APPLIED` / `ALREADY_GRANTED` |
 | POST | /api/jds | S17 | Signed in | `JdCreate {title?, text?, source_url?}` | `201 JobDescription` |
 | GET | /api/jds/{jd_id} | S17 | Owner | — | `JobDescription` |
 | GET | /api/jds/{jd_id}/fit | S17 | Owner | — | `FitReport` |
@@ -119,6 +121,8 @@ The frontend branches on `code`, never on `detail`.
 | POST | /api/subscriptions | Ext | Signed in / org manager | `SubscribeRequest {plan_code, organization_id?, confirm_test_payment}` | `SubscribeResult` |
 | POST | /api/reports | Ext | Signed in | `ReportCreate {target_type, target_id, reason, details?}` | `201 ReportCreated` |
 | GET | /api/operator/queue | Ext | Operator | — | `OperatorQueue` (reports, flagged, payouts, audit log) |
+| GET | /api/operator/role-applications | Ext | Operator | — | `PendingRoleApplication[]` with applicant name/email and `existing_organization` when approval would join an existing one |
+| POST | /api/operator/role-applications/{application_id} | Ext | Operator | `RoleDecision` (`approve`, `note?`) | `RoleApplication`; approval creates the organization if new, the membership or the mentor profile + grant, in one audited transaction |
 | POST | /api/operator/moderate | Ext | Operator | `ModerationAction {target_type, target_id, action, note?}` | `{action}` |
 | POST | /api/operator/payouts/release-due | Ext | Operator | — | `{released}` |
 | POST | /api/operator/payouts/{payout_id} | Ext | Operator | `PayoutAction {action: release\|refund}` | `{action}` |

@@ -1,27 +1,33 @@
 # SprintBridge — Round 2 showcase workflow
 
-How every flow works from start to end, who is involved, and what the system does behind each step. Every flow below was run in the live app against the real database (18 October 2026); the "Result" lines are what we observed.
+How every flow works from start to end, who is involved, and what the system does behind each step. Every flow below was run in the app against the real database (18 October 2026); the "Result" lines are what we observed. Flows A2 and H were re-run after the onboarding and resume-engine changes the same day.
+
+**Live app:** https://sprintbridge-frontend.onrender.com · **API:** https://sprintbridge-api.onrender.com/api/health
 
 **Contents**
 1. [The system in one picture](#1-the-system-in-one-picture)
 2. [Before the demo](#2-before-the-demo)
 3. [Accounts](#3-accounts)
-4. [Flow A — Create an account](#flow-a--create-an-account-and-sign-in)
-5. [Flow B — Campus placement, end to end](#flow-b--campus-placement-end-to-end-the-core-connectivity-story)
-6. [Flow C — Skill gap → mentor → paid session](#flow-c--skill-gap--mentor--paid-session)
-7. [Flow D — Independent skill verification](#flow-d--independent-skill-verification)
-8. [Flow E — Venture Launchpad](#flow-e--venture-launchpad-entrepreneurs)
-9. [Flow F — Plans, quotas and payments](#flow-f--plans-quotas-and-payments-test-mode)
-10. [Flow G — Trust & safety](#flow-g--trust--safety)
-11. [Security points to show](#11-security-points-to-show)
-12. [Suggested 10-minute demo order](#12-suggested-10-minute-demo-order)
-13. [What is real and what is simulated](#13-what-is-real-and-what-is-simulated)
+4. [How each user gets their role](#4-how-each-user-gets-their-role)
+5. [Flow A — Create an account](#flow-a--create-an-account-and-sign-in)
+6. [Flow A2 — Become a recruiter, university or mentor](#flow-a2--become-a-recruiter-university-or-mentor)
+7. [Flow B — Campus placement, end to end](#flow-b--campus-placement-end-to-end-the-core-connectivity-story)
+8. [Flow C — Skill gap → mentor → paid session](#flow-c--skill-gap--mentor--paid-session)
+9. [Flow D — Independent skill verification](#flow-d--independent-skill-verification)
+10. [Flow E — Venture Launchpad](#flow-e--venture-launchpad-entrepreneurs)
+11. [Flow F — Plans, quotas and payments](#flow-f--plans-quotas-and-payments-test-mode)
+12. [Flow G — Trust & safety](#flow-g--trust--safety)
+13. [Flow H — Resume → skills → job fit → recommendations](#flow-h--resume--skills--job-fit--recommendations)
+14. [Flow diagrams per user type (for slides)](#14-flow-diagrams-per-user-type-for-slides)
+15. [Security points to show](#15-security-points-to-show)
+16. [Suggested 12-minute demo order](#16-suggested-12-minute-demo-order)
+17. [What is real and what is simulated](#17-what-is-real-and-what-is-simulated)
 
 ---
 
 ## 1. The system in one picture
 
-Six roles share one platform. Every arrow below is a live connection we demo.
+Seven kinds of user share one platform (student and job seeker differ only in pricing and campus access). Every arrow below is a live connection we demo.
 
 ```mermaid
 flowchart LR
@@ -47,12 +53,14 @@ flowchart LR
     S -- reports scam listing --> O
     O -- removes listing, settles payouts --> R
     O -- refunds disputed session --> S
+    O -- approves recruiter / university / mentor applications --> R
 ```
 
 | Layer | What it is |
 |---|---|
-| Frontend | React app at `http://127.0.0.1:5173` (redesigned, works on phones) |
-| Backend | Python FastAPI at `http://127.0.0.1:8000/api` — verifies every login token (ES256 signature) |
+| Frontend | React app, deployed at https://sprintbridge-frontend.onrender.com (locally `http://127.0.0.1:5173`); works on phones |
+| Backend | Python FastAPI, deployed at https://sprintbridge-api.onrender.com/api (locally `http://127.0.0.1:8000/api`); verifies every login token (ES256 signature) |
+| AI engine | Groq (`gpt-oss-120b`, fallback `gpt-oss-20b`) extracts skills and job requirements with verbatim quotes; Python computes every score |
 | Database | Supabase PostgreSQL with row-level security on every table, plus database functions for every multi-step action, so rules hold even if someone calls the database directly |
 | Auth | Supabase Auth with email confirmation |
 
@@ -60,13 +68,14 @@ flowchart LR
 
 ## 2. Before the demo
 
-1. **Start the backend:** `cd backend && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000`
-2. **Start the frontend:** `cd frontend && npm run dev` → open `http://127.0.0.1:5173`
+1. **Wake the deployed backend** a minute before you start: open https://sprintbridge-api.onrender.com/api/health. Render's free plan sleeps after 15 idle minutes and the first request then takes 30–50 seconds.
+2. **Use the live app** at https://sprintbridge-frontend.onrender.com. To run locally instead: `cd backend && .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000` and `cd frontend && npm run dev`, then open `http://127.0.0.1:5173`.
 3. **Reset to a clean state** (deletes all activity, keeps demo accounts, re-seeds sample data):
    `uv run --with 'psycopg[binary]' python database/reset_demo.py --yes`
 4. **Use separate browser profiles** (or one normal + one private window) per role, so two people stay logged in at once. Sign out between roles otherwise.
 5. **For live sign-ups (Flow A), configure email first** — see the note in Flow A. Without it, Supabase allows only ~2 emails per hour.
-6. Resume and job-description analysis runs on Groq (`GROQ_API_KEY` in `backend/.env`). Groq's free limits are tight (about 30 requests and 8,000 tokens per minute per model), so space out analyses during the demo; the same resume or job description pasted twice is served from cache instantly. If the limit is hit the page says how many seconds to wait.
+6. **Upload text PDFs in the demo.** Scanned (image-only) resumes are read with OCR, which works locally, but OCR needs more memory than Render's free 512 MB instance has, so a scanned upload fails there.
+7. Resume and job-description analysis runs on Groq (`GROQ_API_KEY` in `backend/.env`). Groq's free limits are tight (about 30 requests and 8,000 tokens per minute per model), so space out analyses during the demo; the same resume or job description pasted twice is served from cache instantly. If the limit is hit the page says how many seconds to wait.
 
 ---
 
@@ -86,7 +95,37 @@ Password for every demo account: shared privately with the team.
 | `mentor2@demo.test` | Sara Thomas — Frontend | Free; expert in react L3, typescript L3 |
 | `mentor3@demo.test` | Neha Kulkarni — Backend & data | ₹800/session; expert in python L4, sql L3, java L3 |
 | `founder@demo.test` | Kabir Malhotra — entrepreneur | Ventures: CampusEats (equity), SkillSwap |
-| `operator@demo.test` | Priya — platform operator | Moderation, payouts, audit log |
+| `operator@demo.test` | Priya — platform operator | Moderation, payouts, role approvals, audit log |
+| `newrecruiter@demo.test` | Meera Iyer — signed up as "Recruiter / company" | No role yet after a reset: use her to show onboarding (Flow A2) |
+| `newstudent@demo.test` | Rohan Das — signed up as "Student" | Not on any roster after a reset: University A imports him live (Flow A2) |
+
+---
+
+## 4. How each user gets their role
+
+Everyone signs up the same way. What differs is who has to vouch for them.
+
+| User | How they get access | Who approves | What opens up |
+|---|---|---|---|
+| **Job seeker** | Sign up | Nobody (default) | Public listings, job fit, mentors, ventures; Job Seeker pricing |
+| **Student** | Sign up with the same email the university has on its roster | The **university**, by importing its roster; the account links automatically once the email is confirmed | Campus drives of their university; Student pricing |
+| **Founder** | Sign up and post a venture | Nobody | Ventures, collaborator requests under NDA |
+| **Recruiter** | Sign up, choose "Recruiter / company", then **apply** on *Roles & access* with the company name | A platform **operator** checks the person really works there | Recruiter workspace for that company; joining an existing company is flagged for extra care |
+| **University admin** | Same, choosing "University placement office" | **Operator** | University workspace: roster, drives, placement report |
+| **Mentor** | Same, choosing "Mentor", with area of expertise | **Operator** | Mentor profile, inbox, earnings. Being a *verifier* also needs calibrated expertise, which the platform records separately |
+| **Operator** | Granted by the platform owner only | Platform owner | Operator console |
+
+```mermaid
+flowchart LR
+    V[Visitor] --> SU[Sign up · choose 'joining as'] --> C[Confirm email] --> JS[Job seeker access]
+    JS -->|university imports this email| ST[Student: campus drives]
+    JS -->|posts a venture| FO[Founder]
+    JS -->|applies on Roles & access| AP[Application: pending]
+    AP -->|operator approves| RO[Recruiter / University admin / Mentor workspace]
+    AP -->|operator rejects, with reason| JS
+```
+
+Nobody can give themselves a role: the database only creates memberships and mentor grants inside the operator's approval function, and every approval is written to the audit log.
 
 ---
 
@@ -97,12 +136,12 @@ Password for every demo account: shared privately with the team.
 | # | Where | Action | What the system does |
 |---|---|---|---|
 | 1 | `/login` | Click **Create account** | The URL becomes `/login?mode=signup`, so it can be shared. |
-| 2 | Sign-up form | Enter name, a real email, password twice | Checks the passwords match and are ≥ 8 characters. |
+| 2 | Sign-up form | Enter name, choose **I'm joining as** (Student, Job seeker, Founder, Recruiter / company, University placement office, Mentor), a real email, password twice | Each choice explains what happens next. Checks the passwords match and are ≥ 8 characters. |
 | 3 | Submit | **Create account** | Supabase creates the account (unconfirmed) and emails a confirmation link. A database trigger immediately creates the user's empty profile with their name. Screen: **"Check your inbox."** with **Resend link**. |
 | 4 | Sign in before confirming | Enter email + password | Blocked: **"Your email isn't confirmed yet. Resend the confirmation link."** |
 | 5 | Email | Open the confirmation link | Account is confirmed. |
 | 6 | `/login` | Sign in | Lands on **Overview — "Hello, ‹name›."** with the *Your path* card (0 skills, 0 applications). |
-| 7 | Menu | — | A new user sees only the student/job-seeker menu. Recruiter, University, Verifier and Operator areas don't appear: roles are granted by the platform, never self-assigned. |
+| 7 | Menu | — | A new user sees the student/job-seeker menu. Someone who chose Recruiter, University or Mentor sees a prompt: **"Finish your recruiter application"** (Flow A2). Workspaces appear only after approval. |
 | 8 | `/profile` | Add specialization and skills, save | Skills are cleaned up (lowercase, de-duplicated) and labelled **Self-declared**. |
 | 9 | `/billing` | — | Not on a university roster → **Job Seeker** plans (₹299 Pro). Roster-linked users get **Student** pricing (₹149 Pro). |
 
@@ -111,6 +150,25 @@ Password for every demo account: shared privately with the team.
 **Result (live):** a new account was created, blocked before confirmation, confirmed, signed in to its own dashboard, saved a profile, and was correctly placed on job-seeker pricing.
 
 > **Before round 2:** Supabase's built-in email sender allows about 2 emails per hour. That limit is what stopped our second live sign-up test ("We've sent too many emails…"). In Supabase → **Authentication → Emails → SMTP Settings**, connect a provider (e.g. Resend, Brevo or Gmail SMTP) and raise the rate limit. Also set **Authentication → URL Configuration → Site URL** to the address the app runs on (e.g. `http://127.0.0.1:5173`), so confirmation links open the app.
+
+---
+
+## Flow A2 — Become a recruiter, university or mentor
+
+**Who:** a new recruiter, the operator; a university and a new student. **Shows:** open sign-up without letting anyone pose as a company or college.
+
+| # | Role | Where | Action | What the system does |
+|---|---|---|---|---|
+| 1 | New recruiter (Meera) | `/dashboard` | — | Notice: **"You signed up as a recruiter. Finish your recruiter application…"** |
+| 2 | Meera | `/join` (**Roles & access**) | Choose **Recruiter**, company **Initech Labs**, title, website → **Send application** | Application saved as **Under review**. No workspace yet. One open application per role; applying for a role you already have is refused. |
+| 3 | Operator (Priya) | `/operator` → **Role applications** | Review name, email, company, website → **Approve** (or **Reject** with a reason) | One database transaction: creates the company if it's new (or flags **"Approving adds them to the existing organization …"**), adds the recruiter membership, records who approved, writes the audit log. |
+| 4 | Meera | Menu | — | **Recruiter workspace** appears; `/join` shows **"You have this role"** and the application as **Approved**. She can post listings for Initech Labs only. |
+| 5 | University (Dr. Nair) | `/university` → **Roster** | Import a CSV row with `newstudent@demo.test` | Saved as **University-claimed**. |
+| 6 | New student (Rohan) | Sign in | — | His confirmed email matches the roster row, so his account is **linked automatically**: **Student** pricing, and University A's campus listings appear in **Opportunities**. Only a confirmed email can claim a row, and a claimed row is never re-assigned. |
+
+Universities and mentors follow steps 1–4 the same way (a mentor gives an area of expertise instead of a company).
+
+**Result (live):** Meera applied → Priya approved → Initech Labs was created with Meera as recruiter and her Recruiter workspace opened. University A imported Rohan → on sign-in he had Student pricing and saw the campus ML Engineering Intern listing.
 
 ---
 
@@ -232,9 +290,155 @@ Password for every demo account: shared privately with the team.
 
 ---
 
-## 11. Security points to show
+## Flow H — Resume → skills → job fit → recommendations
 
-- **Roles can't be self-assigned.** A new account gets no recruiter, university, mentor or operator powers. Those come only from the platform.
+**Who:** a student. **Shows:** the AI engine extracts evidence; the score is deterministic and explainable.
+
+| # | Where | Action | What the system does |
+|---|---|---|---|
+| 1 | `/skills` | Upload a PDF resume | The server reads the PDF's text (or OCRs a scanned one). Groq extracts each skill with an **exact quote** from the resume; quotes not found in the resume are dropped. A deterministic pass also finds every known skill named in the resume and its section (Experience, Projects…) and dates, so results don't vary between runs. |
+| 2 | Same | — | Skills grouped by category (Languages, Frameworks, Databases, Cloud & DevOps…), each with a level 1–3, an evidence score out of 100, and **"Why this assessment?"** listing the quotes. Labelled **System-assessed**; only a mentor can certify level 4. |
+| 3 | Same → **Opportunities that fit your resume** | — | Open listings ranked by fit (e.g. Backend Developer Intern 80%, 3 of 3 required skills), with **You have** / **To build** skills and a link to apply. |
+| 4 | `/job-fit` | Paste any job description | Groq extracts required and preferred skills (with quotes) and any **scam red flags**; the fit report splits skills into **Your strengths**, **More evidence needed** and **Skills to build** (each linked to mentors). A JD pasted twice is served from cache. |
+
+**Result (live):** Vikram's two-column resume → 18 skills in 6 categories (e.g. java L3, spring boot L2, postgresql L2) → Backend Developer Intern and Data Engineering Intern at 80% fit → Data Engineer JD 57% fit, missing airflow, dbt, spark. The same resume as a scanned image gave the same 18 skills (run locally).
+
+---
+
+## 14. Flow diagrams per user type (for slides)
+
+One diagram per kind of user, showing their journey through the product. Rendered PNGs are in `docs/diagrams/`.
+
+Each diagram reads top to bottom in stages; inside a stage, left to right.
+
+### Student
+```mermaid
+flowchart TB
+    subgraph S1["1 · Get started"]
+        direction LR
+        A[Sign up as Student] --> B[University imports roster] --> C[Account links<br/>by confirmed email]
+    end
+    subgraph S2["2 · Know your skills"]
+        direction LR
+        D[Upload resume] --> E[Skills with quotes,<br/>levels, categories] --> F[Openings ranked<br/>by fit]
+    end
+    subgraph S3["3 · Apply"]
+        direction LR
+        G[Campus drive:<br/>eligibility check] -->|eligible| H[Apply in one<br/>transaction] --> I[Track: applied →<br/>shortlisted → offered]
+    end
+    subgraph S4["4 · Grow"]
+        direction LR
+        J[Missing skill:<br/>find a mentor] --> K[Paid session<br/>in escrow] --> L[Independent<br/>verification] --> M[Mentor-verified<br/>badge]
+    end
+    S1 --> S2 --> S3 --> S4
+```
+
+### Job seeker
+```mermaid
+flowchart TB
+    subgraph S1["1 · Get started"]
+        direction LR
+        A[Sign up as Job seeker] --> B[Upload resume] --> C[Skills with evidence]
+    end
+    subgraph S2["2 · Check the fit"]
+        direction LR
+        D[Paste any job<br/>description] --> E[Fit report +<br/>scam warnings] --> F[Apply to public<br/>listings]
+    end
+    subgraph S3["3 · Close the gap"]
+        direction LR
+        G[Mentor for a<br/>missing skill] --> H[Verification] --> I[Mentor-verified<br/>badge raises fit]
+    end
+    S1 --> S2 --> S3
+```
+
+### Recruiter
+```mermaid
+flowchart TB
+    subgraph S1["1 · Get verified"]
+        direction LR
+        A[Sign up as Recruiter] --> B[Apply with<br/>company name] --> C[Operator approves] --> D[Recruiter workspace]
+    end
+    subgraph S2["2 · Post"]
+        direction LR
+        E[Public listing] ~~~ F[Campus listing:<br/>share ID with university] --> G[University<br/>authorizes drive]
+    end
+    subgraph S3["3 · Hire"]
+        direction LR
+        H[Applicants with profile +<br/>eligibility snapshot] --> I[Shortlist] --> J[Offer / Reject<br/>audited]
+    end
+    S1 --> S2 --> S3
+```
+
+### University placement office
+```mermaid
+flowchart TB
+    subgraph S1["1 · Get verified"]
+        direction LR
+        A[Sign up as University] --> B[Apply with<br/>college name] --> C[Operator approves]
+    end
+    subgraph S2["2 · Students"]
+        direction LR
+        D[Import roster CSV:<br/>preview, all-or-nothing] --> E[Students link<br/>by confirmed email]
+    end
+    subgraph S3["3 · Drives"]
+        direction LR
+        F[Authorize drive for a<br/>recruiter's campus listing] --> G[Only eligible roster<br/>students can apply]
+    end
+    subgraph S4["4 · Outcomes"]
+        direction LR
+        H[Campus applicants<br/>and decisions] --> I[Placement report<br/>+ safe CSV export]
+    end
+    S1 --> S2 --> S3 --> S4
+```
+
+### Mentor
+```mermaid
+flowchart TB
+    subgraph S1["1 · Get verified"]
+        direction LR
+        A[Sign up as Mentor] --> B[Apply with<br/>area of expertise] --> C[Operator approves]
+    end
+    subgraph S2["2 · Mentor"]
+        direction LR
+        D[Listed in directory:<br/>price never affects rank] --> E[Request arrives:<br/>payment in escrow]
+        E -->|accept| F[Session done:<br/>payout held 7 days]
+        E -->|decline| G[Student refunded]
+    end
+    subgraph S3["3 · Verify (calibrated mentors)"]
+        direction LR
+        H[Randomly assigned,<br/>conflict-free] --> I[Live session] --> J[Pass / fail:<br/>same fee]
+    end
+    S1 --> S2 --> S3
+```
+
+### Founder
+```mermaid
+flowchart TB
+    subgraph S1["1 · Pitch"]
+        direction LR
+        A[Sign up as Founder] --> B[Post venture: public<br/>teaser + private plan]
+    end
+    subgraph S2["2 · Build the team"]
+        direction LR
+        C[Students request to join<br/>and accept NDA] --> D[Founder accepts] --> E[Collaborator sees<br/>the full plan]
+    end
+    S1 --> S2
+```
+
+### Operator
+```mermaid
+flowchart TB
+    A[Operator console] --> B[Approve recruiter /<br/>university / mentor]
+    A --> C[Scam reports and flags:<br/>auto-hidden after 3 reports]
+    A --> D[Disputed payouts:<br/>refund or release]
+    A --> E[Audit log of every<br/>sensitive action]
+```
+
+---
+
+## 15. Security points to show
+
+- **Roles can't be self-assigned.** Anyone can sign up, but recruiter, university and mentor access is granted only when an operator approves an application, inside one audited database function. Students are linked to a university only when their confirmed email is on that university's roster.
 - **Every rule lives in the database**, not just the UI. In testing, direct database calls that bypass the app were refused for: granting yourself a role, posting for another company, inserting an application directly, editing CGPA, faking skill evidence, reading a founder's private plan, or reading the audit log.
 - **Login tokens are verified on every request** (ES256 signature + expiry + issuer). A forged token gets `401`.
 - **Organizations are isolated.** Companies and universities see only their own data.
@@ -242,29 +446,32 @@ Password for every demo account: shared privately with the team.
 
 ---
 
-## 12. Suggested 10-minute demo order
+## 16. Suggested 12-minute demo order
 
 | Time | Flow | Accounts (separate browser profiles) |
 |---|---|---|
-| 0:00–1:00 | **A** — Create account, "check your inbox", sign in to a fresh dashboard | new email |
-| 1:00–4:00 | **B** — Recruiter campus listing → university drive → Asha eligible + applies → Vikram blocked → recruiter offers → tracker + university report | recruiter, admin.a, student, student2 |
-| 4:00–5:30 | **C** — Vikram's gap → Find a mentor → verified experts first → paid request (test payment) → mentor accepts & completes → earnings held | student, mentor |
-| 5:30–7:00 | **D** — Request verification → system assigns a conflict-free mentor → verifier desk → Mentor-verified badge | student, mentor3 |
-| 7:00–8:00 | **E** — Founder's teaser → NDA request → accept → plan unlocked | student, founder |
-| 8:00–9:30 | **G + F** — Scam listing warning → reports → auto-hidden → operator removes; dispute → operator refunds | recruiter2, students, operator |
-| 9:30–10:00 | Security points + business model one-liner | — |
+| 0:00–1:00 | **A** — Create account (choose "joining as"), "check your inbox", sign in to a fresh dashboard | new email |
+| 1:00–2:00 | **A2** — Meera applies as recruiter → operator approves → workspace opens | newrecruiter, operator |
+| 2:00–5:00 | **B** — Recruiter campus listing → university drive → Asha eligible + applies → Vikram blocked → recruiter offers → tracker + university report | recruiter, admin.a, student, student2 |
+| 5:00–6:00 | **H** — Upload a resume → skills by category → recommended openings → paste a JD → fit report | student2 |
+| 6:00–7:30 | **C** — Vikram's gap → Find a mentor → verified experts first → paid request (test payment) → mentor accepts & completes → earnings held | student, mentor |
+| 7:30–9:00 | **D** — Request verification → system assigns a conflict-free mentor → verifier desk → Mentor-verified badge | student, mentor3 |
+| 9:00–10:00 | **E** — Founder's teaser → NDA request → accept → plan unlocked | student, founder |
+| 10:00–11:30 | **G + F** — Scam listing warning → reports → auto-hidden → operator removes; dispute → operator refunds | recruiter2, students, operator |
+| 11:30–12:00 | Security points + business model one-liner | — |
 
 Reset before each rehearsal: `database/reset_demo.py --yes`.
 
 ---
 
-## 13. What is real and what is simulated
+## 17. What is real and what is simulated
 
 | Real (working end to end) | Simulated / not built |
 |---|---|
-| Accounts, email confirmation, login, roles, organization isolation | **Payments** use a clearly labelled *Test mode*; no card is charged. A real provider (e.g. Razorpay) can replace one database function later. |
+| Accounts, email confirmation, login, role applications and operator approval, roster linking, organization isolation | **Payments** use a clearly labelled *Test mode*; no card is charged. A real provider (e.g. Razorpay) can replace one database function later. |
 | Listings, campus drives, eligibility, applications, decisions, reports, CSV | Live video for verification sessions: sessions happen outside the app; the result is recorded in it. |
 | Mentor matching, escrow logic, commission, holds, refunds, disputes | ID / liveness checks (KYC) |
 | Independent verification: conflict checks, random assignment, audits, expiry | DigiLocker / NAD academic record verification |
 | Ventures with confidentiality | GitHub analysis, 48-hour proof plans, recruiter outreach drafts |
-| Reports, scam flags, auto-hide, operator console, audit log | Resume / job-description analysis runs live on Groq (rate-limited; identical inputs are cached) |
+| Reports, scam flags, auto-hide, operator console, audit log | Scanned-resume OCR works locally but not on the free 512 MB server |
+| Resume and job-description analysis on Groq (rate-limited; identical inputs cached), fit scores, recommendations | |

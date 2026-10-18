@@ -14,8 +14,20 @@ import { useQuery } from "../lib/useQuery";
 import type { Page, Opportunity, Application } from "../lib/types";
 import { Heading, Badge, ErrorMessage, Loading, Empty } from "../components/ui";
 import { OpportunityRow } from "./Opportunities";
+import { ROLE_LABEL } from "./Join";
+import type { RoleKind } from "../lib/types";
+
+const CAPABILITY: Record<RoleKind, string> = {
+  recruiter: "recruiter",
+  university_admin: "university_admin",
+  mentor: "mentor",
+};
+
 export default function Dashboard() {
-  const { me } = useAuth();
+  const { me, session } = useAuth();
+  const joiningAs = session?.user.user_metadata?.joining_as as string | undefined;
+  const partner = joiningAs && joiningAs in CAPABILITY ? (joiningAs as RoleKind) : null;
+  const needsRole = partner && !me!.capabilities.includes(CAPABILITY[partner] as never);
   const jobs = useQuery<Page<Opportunity>>("/opportunities?page_size=3");
   const applications = useQuery<Page<Application>>(
     "/applications?scope=student&page_size=1",
@@ -28,6 +40,19 @@ export default function Dashboard() {
       >
         A little clarity. A little momentum. Your next step starts here.
       </Heading>
+      {needsRole && (
+        <p className="notice" role="status">
+          You signed up as a {ROLE_LABEL[partner].toLowerCase()}.{" "}
+          <Link to={`/join?as=${partner}`}>Finish your {ROLE_LABEL[partner].toLowerCase()} application</Link> so an
+          operator can verify you and open your workspace. Until then you can explore as a job seeker.
+        </p>
+      )}
+      {joiningAs === "founder" && (
+        <p className="notice" role="status">
+          Ready to build a team? <Link to="/ventures">Post your venture</Link>: collaborators see only your public
+          teaser until they accept your NDA and you accept them.
+        </p>
+      )}
       <section className="welcome-panel">
         <div>
           <Badge tone="light">Your career, in motion</Badge>

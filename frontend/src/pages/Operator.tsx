@@ -2,12 +2,14 @@ import { useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { useAuth } from "../auth";
 import { useQuery } from "../lib/useQuery";
-import type { OperatorQueue } from "../lib/types";
+import type { OperatorQueue, PendingRoleApplication } from "../lib/types";
+import { ROLE_LABEL } from "./Join";
 import { Badge, Empty, ErrorMessage, Heading, Loading, date, inr } from "../components/ui";
 
 export default function Operator() {
   const { api } = useAuth();
   const queue = useQuery<OperatorQueue>("/operator/queue");
+  const roles = useQuery<PendingRoleApplication[]>("/operator/role-applications");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [message, setMessage] = useState("");
@@ -19,6 +21,7 @@ export default function Operator() {
       await api(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
       setMessage(done);
       queue.reload();
+      roles.reload();
     } catch (err) {
       setError(err);
     } finally {
@@ -61,6 +64,74 @@ export default function Operator() {
               <strong>{q.audit.length}</strong>
             </div>
           </div>
+
+          <section>
+            <h2 style={{ marginBottom: 4 }}>Role applications</h2>
+            <p className="muted" style={{ marginBottom: 12 }}>
+              Check that the person really works at the company or college (work email, website, LinkedIn) before
+              approving. Approval creates their workspace or mentor profile.
+            </p>
+            <ErrorMessage error={roles.error} />
+            {roles.data?.length === 0 && (
+              <Empty title="No applications waiting">New recruiter, university and mentor applications appear here.</Empty>
+            )}
+            <div className="stack">
+              {roles.data?.map((a) => (
+                <article className="panel" key={a.id}>
+                  <div className="section-heading">
+                    <div>
+                      <h2>
+                        {a.applicant_name} · {ROLE_LABEL[a.kind]}
+                      </h2>
+                      <p className="muted">
+                        {a.applicant_email} · {a.organization_name ?? a.niche}
+                        {a.job_title && ` · ${a.job_title}`} · sent {date(a.created_at)}
+                      </p>
+                    </div>
+                    <Badge tone="amber">Pending</Badge>
+                  </div>
+                  {a.existing_organization && (
+                    <p className="notice warning">
+                      <AlertTriangle size={16} aria-hidden="true" /> Approving adds them to the existing organization
+                      “{a.existing_organization}”. Confirm they really work there.
+                    </p>
+                  )}
+                  {a.website && (
+                    <p className="small">
+                      <a href={a.website} target="_blank" rel="noreferrer noopener">
+                        {a.website}
+                      </a>
+                    </p>
+                  )}
+                  {a.experience_summary && <blockquote>{a.experience_summary}</blockquote>}
+                  <div className="actions">
+                    <button
+                      className="primary"
+                      disabled={busy}
+                      onClick={() =>
+                        act(`/operator/role-applications/${a.id}`, { approve: true }, `${a.applicant_name} approved.`)
+                      }
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        act(
+                          `/operator/role-applications/${a.id}`,
+                          { approve: false, note: "We couldn't verify this. Reply from your work email and apply again." },
+                          `${a.applicant_name} rejected.`,
+                        )
+                      }
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
 
           <section>
             <h2 style={{ marginBottom: 12 }}>Reports</h2>

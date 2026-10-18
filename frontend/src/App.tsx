@@ -25,6 +25,7 @@ import {
   GraduationCap,
   Rocket,
   CreditCard,
+  KeyRound,
   ShieldCheck,
   ShieldAlert,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import Mentors from "./pages/Mentors";
 import University from "./pages/University";
 import Ventures, { VentureDetail } from "./pages/Ventures";
 import Billing from "./pages/Billing";
+import Join from "./pages/Join";
 import Verify from "./pages/Verify";
 import Operator from "./pages/Operator";
 
@@ -93,6 +95,7 @@ function Layout() {
     ["/mentors", "Mentorship", UsersRound],
     ["/ventures", "Ventures", Rocket],
     ["/billing", "Plans & billing", CreditCard],
+    ["/join", "Roles & access", KeyRound],
   ] as const;
   return (
     <div className="app">
@@ -233,6 +236,7 @@ export default function App() {
         <Route path="ventures" element={<Ventures />} />
         <Route path="ventures/:id" element={<VentureDetail />} />
         <Route path="billing" element={<Billing />} />
+        <Route path="join" element={<Join />} />
         <Route path="verify" element={<Verify />} />
         <Route path="operator" element={<Operator />} />
         <Route path="skills" element={<Skills />} />

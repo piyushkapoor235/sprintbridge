@@ -15,6 +15,8 @@ PROFILE_COLUMNS = "user_id, name, specialization, education_summary, skills, por
 
 def build_me(db: Client, actor: Actor) -> Me:
     uid = str(actor.user_id)
+    # A student whose confirmed email is on a university roster is linked to it (idempotent, cheap).
+    run(db.rpc("claim_roster_records", {}))
     profiles = run(db.table("profiles").select(PROFILE_COLUMNS).eq("user_id", uid).limit(1)).data
     if not profiles:
         raise ApiError(404, "NOT_FOUND", "Profile not found.")

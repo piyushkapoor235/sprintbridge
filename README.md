@@ -21,7 +21,7 @@ backend/            FastAPI app (Python 3.13)
   app/pagination.py list envelope
   app/routers/      one module per domain (all 33 contract operations implemented)
   app/schemas/      Pydantic request/response models = the contract
-  app/services/     access checks, coverage, fit, skill scoring, roster CSV, CSV export, Claude extraction
+  app/services/     access checks, coverage, fit, skill scoring, roster CSV, CSV export, Groq LLM extraction
   tests/            unit tests, no network needed
   tests_live/       end-to-end journeys against the live Supabase project
 database/
@@ -46,7 +46,7 @@ cp .env.example .env          # fill in Supabase URL and publishable key
 .venv/bin/python -m pytest tests_live -q   # live journeys; needs backend/.env and the seed; cleans up after itself
 ```
 
-`ANTHROPIC_API_KEY` in `backend/.env` enables resume and job-description analysis. Without it those endpoints return 503 and everything else works.
+`GROQ_API_KEY` in `backend/.env` enables resume and job-description analysis (model `openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b`). Without it those endpoints return 503 and everything else works. The engine budgets Groq's rate limits locally; see `backend/app/services/llm.py`.
 
 **Deploy:** `render.yaml` is a Render Blueprint (Free plan). In Render: New → Blueprint → this repository, then enter the secrets in the dashboard. Set `ALLOWED_ORIGINS` to the deployed frontend URL.
 

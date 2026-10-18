@@ -115,6 +115,7 @@ export interface UserSkill {
   label: string;
   level: number | null;
   evidence_score: number | null;
+  category: string;
   verified_until?: string | null;
   evidence: {
     id: string;
@@ -127,6 +128,27 @@ export interface UserSkill {
 export interface Skills {
   resume_status: string;
   items: UserSkill[];
+}
+export interface ResumeUploadResult {
+  resume_id: string;
+  status: string;
+  text_source: "pdf" | "ocr" | "cached";
+  skills_found: number;
+  skills_rejected: number;
+}
+export interface Recommendation {
+  opportunity_id: string;
+  title: string;
+  company_name: string;
+  type: string;
+  visibility: string;
+  deadline: string;
+  fit_percent: number | null;
+  required_met: number;
+  required_total: number;
+  matching_skills: string[];
+  missing_skills: string[];
+  applied: boolean;
 }
 export interface Fit {
   fit_percent: number | null;
@@ -259,4 +281,12 @@ export interface OperatorQueue {
   flagged: { id: string; title: string; company: string; red_flags: string[]; moderation_status: string }[];
   payouts: { id: string; source: string; net_inr: number; status: string; release_after: string; mentor: string }[];
   audit: { id: number; action: string; target_type: string; created_at: string; actor: string; details: Record<string, unknown> }[];
+}
+export interface JobDescription {
+  id: string;
+  title: string | null;
+  source_url: string | null;
+  created_at: string;
+  requirements: { skill: string; kind: string; min_level: number; quote: string | null }[];
+  red_flags: string[];
 }

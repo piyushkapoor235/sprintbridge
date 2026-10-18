@@ -10,6 +10,7 @@ from app.services.coverage import skill_coverage
 from app.services.csv_export import safe_cell, to_csv
 from app.services.documents import quote_in_source, squash
 from app.services.fit import Held, Need, fit_report
+from app.services.normalize import canonical_skill, mentioned_skills, skill_category
 from app.services.roster_csv import parse_roster
 from app.services.skill_profile import level_for, score_skill
 
@@ -63,8 +64,13 @@ def _ev(i, context, years=None, year=None):
 
 def test_score_in_context_project_with_recency():
     score, items = score_skill([_ev(1, "project", years=0.5, year=2026)], current_year=2026)
-    assert score == 15 + 10 + 15  # in-context + one project + used this year
-    assert level_for(score) == 1 and items[0].points == score
+    assert score == 20 + 10 + 25  # in-context + one project + used this year
+    assert level_for(score) == 2 and items[0].points == score
+
+
+def test_internship_experience_reaches_working_level():
+    score, _ = score_skill([_ev(1, "experience", year=2026), _ev(2, "skills_list")], current_year=2026)
+    assert score == 20 + 15 + 25 and level_for(score) == 2
 
 
 def test_keyword_stuffing_is_capped():
@@ -76,8 +82,8 @@ def test_keyword_stuffing_is_capped():
 def test_score_caps_and_level_bands():
     rows = [_ev(1, "experience", years=3, year=2026), _ev(2, "project", years=1), _ev(3, "project")]
     score, _ = score_skill(rows, current_year=2026)
-    assert score == 25 + 25 + 15  # resume cap 25, depth cap 25, recency 15
-    assert level_for(score) == 2
+    assert score == 35 + 40 + 25  # context cap 35, depth cap 40, recency 25
+    assert level_for(score) == 3
     assert [level_for(s) for s in (24, 25, 50, 75, 100)] == [None, 1, 2, 3, 3]
 
 
@@ -155,3 +161,44 @@ def test_translate(error, status, code):
     result = translate(APIError(error), unique_code="ALREADY_REQUESTED")
     assert (result.status_code, result.code) == (status, code)
     assert "table" not in result.detail and "constraint" not in result.detail
+
+
+RESUME = """Asha Rao
+TECHNICAL SKILLS
+Languages: Java, Python (2024)
+EXPERIENCE
+Backend Intern, Globex · May 2025 - Jul 2026
+• Set up a GitHub Actions pipeline; tuned Postgres queries
+Teaching Assistant, Data Structures
+Aug 2023 - Dec 2023
+• Java labs
+Projects
+Game engine (2024)
+• Node.js and C++ game engine
+"""
+
+
+def test_mentioned_skills_uses_resume_sections_and_dates():
+    found = {(skill, context, year) for skill, _, context, year in mentioned_skills(RESUME)}
+    assert {("java", "skills_list", None), ("python", "skills_list", None),
+            ("github actions", "experience", 2026), ("postgresql", "experience", 2026),
+            ("data structures", "experience", 2023), ("java", "experience", 2023),
+            ("node.js", "project", 2024), ("c++", "project", 2024)} == found
+    assert "github" not in {skill for skill, *_ in found}  # the longer phrase wins
+
+
+def test_certifications_count_as_the_vendor_skill():
+    assert canonical_skill("AWS Certified Cloud Practitioner") == "aws"
+    assert canonical_skill("Microsoft Azure Fundamentals") == "azure"
+    assert canonical_skill("aws lambda") == "aws lambda"
+
+
+def test_mentioned_skills_skips_ordinary_words():
+    assert mentioned_skills("I go to the gym and excel at it. Email a.js@x.test. Spring 2026.") == []
+
+
+def test_skill_categories():
+    assert skill_category("Spring Boot") == "Frameworks & libraries"
+    assert skill_category("postgres") == "Databases"
+    assert skill_category("GitHub Actions") == "Cloud & DevOps"
+    assert skill_category("basket weaving") == "Other skills"

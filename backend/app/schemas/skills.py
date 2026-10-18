@@ -21,6 +21,7 @@ class EvidenceItem(BaseModel):
 
 class UserSkill(BaseModel):
     skill: str
+    category: str = "Other skills"
     label: EvidenceLabel
     level: int | None = Field(None, ge=1, le=4)  # system-assessed caps at 3; 4 only from a mentor
     evidence_score: int | None = Field(None, ge=0, le=100)  # null for self_declared
@@ -43,6 +44,7 @@ class SkillsResponse(BaseModel):
 class ResumeUploadResult(BaseModel):
     resume_id: UUID
     status: ResumeStatus
+    text_source: Literal["pdf", "ocr", "cached"] = "pdf"  # "ocr" for scanned resumes
     skills_found: int
     skills_rejected: int  # extracted but dropped: quote not found in the source text
 
@@ -72,6 +74,7 @@ class JobDescription(BaseModel):
     source_url: str | None
     created_at: datetime
     requirements: list[Requirement]
+    red_flags: list[str] = []  # scam warnings found in the text (e.g. asks candidates to pay)
 
 
 class FitItem(BaseModel):
@@ -94,3 +97,20 @@ class FitReport(BaseModel):
     required_met: int
     required_total: int
     items: list[FitItem]
+
+
+class Recommendation(BaseModel):
+    """An open listing ranked by deterministic fit against the caller's skill evidence."""
+
+    opportunity_id: UUID
+    title: str
+    company_name: str
+    type: str
+    visibility: str
+    deadline: datetime
+    fit_percent: int | None
+    required_met: int
+    required_total: int
+    matching_skills: list[str]
+    missing_skills: list[str]
+    applied: bool

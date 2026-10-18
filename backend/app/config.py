@@ -13,9 +13,12 @@ class Settings(BaseSettings):
     # Used only by db.service_client() for server-owned tables; never for user-scoped reads.
     supabase_secret_key: str = ""
     allowed_origins: str = "http://localhost:5173"
-    # Skill extraction (docs/skill-intelligence.md §10). Unset key -> those endpoints answer 503.
-    anthropic_api_key: str = ""
-    anthropic_model: str = "claude-opus-5-5"
+    # Skill extraction via Groq (docs/skill-intelligence.md §10). Unset key -> those endpoints answer 503.
+    groq_api_key: str = ""
+    groq_model: str = "openai/gpt-oss-120b"
+    groq_fallback_model: str = "openai/gpt-oss-20b"  # separate Groq rate limits; used when the primary is busy
+    groq_rpm: int = 30  # per model, matching Groq's published limits
+    groq_tpm: int = 7500  # a little under Groq's 8K tokens/minute, to stay clear of 429s
     request_timeout_seconds: float = 10.0
 
     @property

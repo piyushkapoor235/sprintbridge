@@ -7,7 +7,7 @@ services:
     plan: free
     rootDir: backend
     # Second step pre-downloads the OCR models so the first scanned resume is not slow.
-    buildCommand: pip install -r requirements.txt && python -c "from rapidocr import RapidOCR; RapidOCR()"
+    buildCommand: pip install -r requirements.txt && python -m app.services.ocr_worker --warm
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:

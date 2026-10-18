@@ -64,6 +64,7 @@ flowchart LR
 2. The backend extracts the PDF text itself and sends that text to Groq with a strict JSON-schema output.
    - **Text PDFs** use their own text layer (pypdf).
    - **Scanned or image-only PDFs** are read with OCR: RapidOCR (ONNX, CPU, no external service) on pages rendered by pypdfium2, at most 5 pages. A PDF counts as scanned when its text layer has too few letters or words, or is broken font output like `(cid:12)`.
+   - OCR runs in a short-lived child process (`app/services/ocr_worker.py`), one job at a time, using the English recognizer at about 108 dpi. It peaks around 475 MB; all of that is freed when the child exits. If memory runs out, the child is killed and the student gets a clear message, but the API keeps running. A common OCR misread is fixed: `APls` → `APIs`.
    - **Two-column layouts** (a sidebar plus a main column) are read column by column. The gutter is the widest vertical strip no text box crosses, so a 30/70 sidebar works as well as a 50/50 split.
    - The upload result reports `text_source`: `pdf`, `ocr` or `cached`, and the UI tells the student when OCR was used.
 

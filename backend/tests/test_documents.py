@@ -40,14 +40,6 @@ def scanned_pdf(lines=BODY) -> bytes:
     return buf.getvalue()
 
 
-def ocr_result(lines):
-    """A RapidOCR-shaped result from (x0, x1, y, text) tuples."""
-    return SimpleNamespace(
-        boxes=[[(x0, y), (x1, y), (x1, y + 10), (x0, y + 10)] for x0, x1, y, _ in lines],
-        txts=[t for *_, t in lines],
-    )
-
-
 def test_text_layer_detection():
     assert documents._text_layer_usable(" ".join(BODY))
     assert not documents._text_layer_usable("")
@@ -69,6 +61,16 @@ def test_scanned_pdf_is_read_with_ocr():
         assert phrase in squashed
 
 
+def test_ocr_worker_failure_is_a_clear_error(monkeypatch):
+    def killed(*args, **kwargs):  # e.g. the kernel's out-of-memory killer
+        return SimpleNamespace(returncode=-9, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(documents.subprocess, "run", killed)
+    with pytest.raises(ApiError) as caught:
+        documents.pdf_text(scanned_pdf())
+    assert caught.value.status_code == 422 and "scanned PDF" in caught.value.detail
+
+
 def test_blank_scan_is_a_clear_error(monkeypatch):
     monkeypatch.setattr(documents, "_ocr_pdf", lambda raw: "")
     with pytest.raises(ApiError) as caught:
@@ -82,8 +84,8 @@ def test_not_a_pdf_is_rejected():
 
 
 def test_ocr_single_column_reads_top_to_bottom():
-    result = ocr_result([(50, 500, 40, "second"), (50, 500, 10, "first"), (50, 500, 70, "third")])
-    assert documents._ocr_lines(result, 600) == ["first", "second", "third"]
+    lines = [(50, 500, 40, "second"), (50, 500, 10, "first"), (50, 500, 70, "third")]
+    assert documents._ocr_lines(lines, 600) == ["first", "second", "third"]
 
 
 def test_ocr_sidebar_layout_reads_column_by_column():
@@ -93,8 +95,14 @@ def test_ocr_sidebar_layout_reads_column_by_column():
         lines.append((20, 330, 100 + i * 40, f"side {i}"))
         lines.append((420, 1150, 100 + i * 40, f"main {i}"))
     lines.append((900, 1150, 98, "May 2026"))  # right-aligned date, a pixel above its row
-    order = documents._ocr_lines(ocr_result(lines), 1240)
+    order = documents._ocr_lines(lines, 1240)
     assert order[0] == "Header spanning both columns"
     assert order[1:7] == [f"side {i}" for i in range(6)]
     assert order[7:9] == ["main 0", "May 2026"]
     assert order[9:] == [f"main {i}" for i in range(1, 6)]
+
+
+def test_ocr_capital_i_fix():
+    fix = documents._OCR_CAPITAL_I.sub
+    assert fix("I", "Built REST APls and a CLl") == "Built REST APIs and a CLI"
+    assert fix("I", "Excel, Apple, HTML") == "Excel, Apple, HTML"  # ordinary words untouched

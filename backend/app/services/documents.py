@@ -2,9 +2,14 @@
 
 import io
 import ipaddress
+import json
+import os
 import re
 import socket
+import subprocess
+import sys
 import threading
+from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 
@@ -82,13 +87,10 @@ def _column_gutter(lines: list[tuple], page_width: float) -> float | None:
     return gutter if left >= 0.2 * len(lines) and right >= 0.2 * len(lines) else None
 
 
-def _ocr_lines(result, page_width: float) -> list[str]:
-    """Order OCR lines for reading. Two-column layouts are read column by column (left, then
-    right) instead of interleaving rows from both columns."""
-    lines = []
-    for box, text in zip(result.boxes, result.txts):
-        xs, ys = [p[0] for p in box], [p[1] for p in box]
-        lines.append((min(xs), max(xs), min(ys), text))
+def _ocr_lines(lines: list[tuple], page_width: float) -> list[str]:
+    """Order OCR lines (x0, x1, y, text) for reading. Two-column layouts are read column by column
+    (left, then right) instead of interleaving rows from both columns."""
+    lines = [tuple(line) for line in lines]
     if not lines:
         return []
     gutter = _column_gutter(lines, page_width)
@@ -106,31 +108,26 @@ def _ocr_lines(result, page_width: float) -> list[str]:
     return [l[3] for l in ordered]
 
 
-_ocr_engine = None
 _ocr_lock = threading.Lock()
+OCR_TIMEOUT_SECONDS = 90
 
 
 def _ocr_pdf(raw: bytes) -> str:
-    """Render each page and read it with RapidOCR (ONNX, CPU, models bundled with the package)."""
-    global _ocr_engine
-    import pypdfium2 as pdfium  # imported lazily: only scanned resumes need OCR
-    from rapidocr import RapidOCR
+    """OCR in a child process (app/services/ocr_worker.py): its memory is freed when it exits, and an
+    out-of-memory kill takes down the child, not the API. One job at a time keeps a small server alive."""
+    env = {**os.environ, "MALLOC_ARENA_MAX": "2", "OMP_NUM_THREADS": "1"}
+    with _ocr_lock:
+        done = subprocess.run([sys.executable, "-m", "app.services.ocr_worker"], input=raw, capture_output=True,
+                              timeout=OCR_TIMEOUT_SECONDS, env=env, cwd=Path(__file__).resolve().parents[2])
+    if done.returncode != 0:
+        raise RuntimeError(f"OCR worker exited with {done.returncode}: {done.stderr[-300:]!r}")
+    pages = json.loads(done.stdout)["pages"]
+    text = "\n\n".join("\n".join(_ocr_lines(page["lines"], page["width"])) for page in pages if page["lines"])
+    return _OCR_CAPITAL_I.sub("I", text)
 
-    with _ocr_lock:  # one OCR job at a time keeps a small server responsive
-        if _ocr_engine is None:
-            _ocr_engine = RapidOCR()
-        pdf = pdfium.PdfDocument(raw)
-        try:
-            pages = []
-            for index in range(min(len(pdf), MAX_PAGES)):
-                page = pdf[index]
-                image = page.render(scale=2).to_pil()
-                result = _ocr_engine(image)
-                if result.txts:
-                    pages.append("\n".join(_ocr_lines(result, image.width)))
-        finally:
-            pdf.close()
-    return "\n\n".join(pages)
+
+# OCR often reads a capital I as a lowercase l after capitals: "APls" -> "APIs", "CLl" -> "CLI".
+_OCR_CAPITAL_I = re.compile(r"(?<=[A-Z]{2})l(?=s?\b)")
 
 
 def pdf_text(raw: bytes) -> tuple[str, str]:

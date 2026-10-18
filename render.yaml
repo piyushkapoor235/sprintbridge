@@ -26,7 +26,7 @@ services:
   - type: web
     name: sprintbridge-frontend
     runtime: static
-    branch: frontend
+    branch: main
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 200" width="900" height="200" role="img" aria-label="Coverage stage">
+<style>@keyframes pulse{0%,40%,100%{opacity:1}50%{opacity:.55}}
+@keyframes flow{0%,30%{stroke-dashoffset:60}45%,100%{stroke-dashoffset:0}}@media (prefers-reduced-motion:reduce){*{animation:none!important}}</style>
+<rect width="900" height="200" rx="16" fill="#F6F5FB"/>
+<rect x="20" y="20" width="410" height="160" rx="12" fill="#FFFFFF" stroke="#E2DFF2"/>
+<rect x="480" y="20" width="400" height="160" rx="12" fill="#FFFFFF" stroke="#E2DFF2"/>
+<text x="40" y="56" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" letter-spacing="1.4" font-weight="700" fill="#7A7F96">IN</text>
+<text x="500" y="56" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" letter-spacing="1.4" font-weight="700" fill="#7A7F96">OUT</text>
+<rect x="400" y="30" width="100" height="26" rx="13" fill="#533AFD" style="animation:pulse 6s infinite"/>
+<text x="450" y="48" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12.5" font-weight="700" fill="#FFFFFF">Coverage</text>
+<path d="M432 110 H476" stroke="#F2A93B" stroke-width="3" stroke-dasharray="60" style="animation:flow 6s infinite"/>
+<path d="M470 104 L478 110 L470 116" fill="none" stroke="#F2A93B" stroke-width="3"/>
+<text x="40" y="96" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" fill="#454A63" >EXPERIENCE · May 2026 – Jul 2026</text><text x="40" y="126" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" fill="#454A63" >• Set up a GitHub Actions pipeline</text><text x="40" y="156" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" fill="#454A63" >known-skill scan, ambiguous words skipped</text><text x="500" y="96" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" fill="#15133A" >github actions · experience · 2026</text><text x="500" y="126" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" fill="#15133A" >missing year filled in</text><text x="500" y="156" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" fill="#15133A" >same skills on every run</text>
+</svg>

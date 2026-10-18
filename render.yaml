@@ -6,7 +6,8 @@ services:
     runtime: python
     plan: free
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    # Second step pre-downloads the OCR models so the first scanned resume is not slow.
+    buildCommand: pip install -r requirements.txt && python -c "from rapidocr import RapidOCR; RapidOCR()"
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
@@ -20,7 +21,7 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false  # the deployed frontend URL, comma-separated with http://localhost:5173
-      - key: ANTHROPIC_API_KEY
+      - key: GROQ_API_KEY
         sync: false  # optional: resume/JD analysis returns 503 without it
   - type: web
     name: sprintbridge-frontend

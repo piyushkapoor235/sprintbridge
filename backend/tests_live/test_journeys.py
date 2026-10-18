@@ -4,7 +4,7 @@ Run from backend/ with a filled backend/.env and the seed applied (database/seed
 
     .venv/bin/python -m pytest tests_live -q
 
-Claude is replaced by a fake (no API key needed); everything else is real. Every row the suite
+The LLM (Groq) is replaced by a fake (no API key or rate limit needed); everything else is real. Every row the suite
 creates is tagged and deleted at the end, so the demo data stays clean.
 """
 
@@ -283,7 +283,7 @@ def test_venture_collaboration_flow(api):
     assert vid in ids(api("mentor", "GET", "/ventures", params={"skill": "react"}))
 
 
-# --- skill intelligence (Claude faked) ------------------------------------------------
+# --- skill intelligence (LLM faked) ------------------------------------------------
 
 
 def _pdf(lines: list[str]) -> bytes:
@@ -304,7 +304,7 @@ RESUME = [
 
 
 def test_resume_to_fit_report(api, monkeypatch):
-    def fake_resume(_pdf_bytes):
+    def fake_resume(_resume_text):
         return llm.ResumeExtraction(skills=[
             llm.ExtractedSkill(skill="python", context_type="project", quote="Built ETL pipelines in Python and SQL", years=1, last_used_year=2026),
             llm.ExtractedSkill(skill="sql", context_type="project", quote="Built ETL pipelines in Python and SQL", last_used_year=2026),
@@ -325,13 +325,15 @@ def test_resume_to_fit_report(api, monkeypatch):
 
     upload = api("student", "POST", "/me/resume", files={"file": ("cv.pdf", _pdf(RESUME), "application/pdf")})
     assert upload.status_code == 201, upload.text
-    assert (upload.json()["skills_found"], upload.json()["skills_rejected"]) == (3, 1)
+    # 3 from the model + kubernetes and etl, named in the resume but skipped by the model (bare mentions).
+    assert (upload.json()["skills_found"], upload.json()["skills_rejected"]) == (5, 1)
     assert api("student", "POST", "/me/resume", files={"file": ("x.pdf", b"not a pdf", "application/pdf")}).status_code == 422
 
     skills = {s["skill"]: s for s in api("student", "GET", "/me/skills").json()["items"]}
     # Python may already be mentor-verified (which outranks system-assessed); the evidence score is the same.
-    assert skills["python"]["label"] in ("system_assessed", "mentor_verified") and skills["python"]["evidence_score"] == 15 + 15 + 15
+    assert skills["python"]["label"] in ("system_assessed", "mentor_verified") and skills["python"]["evidence_score"] == 20 + (10 + 5) + 25  # in context, 1 project + 1 year, used this year
     assert skills["docker"]["evidence_score"] == 5 and "rust" not in skills  # stuffing capped; fabricated skill dropped
+    assert skills["kubernetes"]["evidence_score"] == 5 and skills["kubernetes"]["level"] is None  # safety net: mention only
     assert all(s["evidence_score"] is None or s["evidence_score"] < 100 for s in skills.values())  # injection had no effect
 
     jd = api("student", "POST", "/jds", json={"title": f"{TAG} pasted JD", "text": "We need Strong Python and Docker experience. Airflow is a plus."})

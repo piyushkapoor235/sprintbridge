@@ -46,7 +46,7 @@ The university page can use tabs for roster, drives, and reports; the recruiter 
 | Authentication | Supabase Auth; pre-created email/password demo users | Person 2 |
 | Data client | Supabase Python client, request-scoped user credentials | Person 2 supplies shared helper |
 | Eligibility and CSV | One authoritative eligibility database predicate called by both the eligibility endpoint and atomic submission ([architecture.md](docs/architecture.md) §6). Standard-library `csv` for parsing; focused pytest cases. | Person 3 |
-| Skill extraction (cut-able) | Claude API via the Anthropic Python SDK inside FastAPI; the LLM extracts with quotes, Python computes scores | Person 2 |
+| Skill extraction (cut-able) | Groq API (gpt-oss-120b) inside FastAPI; the LLM extracts with quotes, Python computes scores | Person 2 |
 | Hosting | Render Free static frontend + Render Free Python web service | Person 2; Person 1 frontend setup |
 | Fallback demonstration | Frontend and FastAPI run locally, using the same hosted Supabase project | Entire team rehearses |
 

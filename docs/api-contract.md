@@ -93,8 +93,9 @@ The frontend branches on `code`, never on `detail`.
 | POST | /api/mentor-requests | S14 | Signed in, not the mentor | `MentorRequestCreate {mentor_id, note}` | `201 MentorRequest` |
 | GET | /api/mentor-requests | S14 | Requester or mentor | `scope=requester\|mentor, page` | `Page[MentorRequest]` |
 | PATCH | /api/mentor-requests/{request_id} | S14 | Owning mentor | `RequestDecision {status}` | `MentorRequest` |
-| POST | /api/me/resume | S16 | Signed in | multipart: `file` (PDF ≤ 5 MB) | `201 ResumeUploadResult` |
-| GET | /api/me/skills | S16 | Signed in | — | `SkillsResponse` |
+| POST | /api/me/resume | S16 | Signed in | multipart: `file` (PDF ≤ 5 MB; scanned PDFs are OCR'd) | `201 ResumeUploadResult` (`text_source`: pdf / ocr / cached) |
+| GET | /api/me/skills | S16 | Signed in | — | `SkillsResponse` (each skill has a `category`) |
+| GET | /api/me/recommendations | Ext | Signed in | `limit?` (1–20) | `Recommendation[]`: open listings ranked by fit against the caller's evidence, with matching/missing skills (no LLM call) |
 | POST | /api/jds | S17 | Signed in | `JdCreate {title?, text?, source_url?}` | `201 JobDescription` |
 | GET | /api/jds/{jd_id} | S17 | Owner | — | `JobDescription` |
 | GET | /api/jds/{jd_id}/fit | S17 | Owner | — | `FitReport` |
@@ -122,7 +123,7 @@ The frontend branches on `code`, never on `detail`.
 | POST | /api/operator/payouts/release-due | Ext | Operator | — | `{released}` |
 | POST | /api/operator/payouts/{payout_id} | Ext | Operator | `PayoutAction {action: release\|refund}` | `{action}` |
 
-All operations are implemented (18 October 2026); rows marked **Ext** come from the threat-model and business-model extensions (migrations 0012–0016) and exercised end-to-end against the live project by `backend/tests_live/test_journeys.py`. Resume and JD analysis need `ANTHROPIC_API_KEY`; without it they return `503 SERVICE_UNAVAILABLE`, and everything else works.
+All operations are implemented (18 October 2026); rows marked **Ext** come from the threat-model and business-model extensions (migrations 0012–0016) and exercised end-to-end against the live project by `backend/tests_live/test_journeys.py`. Resume and JD analysis need `GROQ_API_KEY`; without it, or while Groq's rate limit is exhausted, they return `503 SERVICE_UNAVAILABLE` with a clear message ("switched off" or "try again in about N seconds"), and everything else works. `JobDescription` also carries `red_flags` (scam warnings).
 
 ## 3. Examples
 

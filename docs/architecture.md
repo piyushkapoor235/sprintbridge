@@ -23,7 +23,7 @@ Keep business operations behind FastAPI. The browser talks directly to Supabase 
 | Persistence | Supabase Free PostgreSQL | Shared relational data and constraints |
 | Database access | Supabase Python client using caller JWT; one narrow service client for server-owned tables | User-scoped reads, writes and function calls under RLS. Only `resumes`, `skill_evidence` and `job_requirements` are written with the secret key ([api-contract.md](api-contract.md) §5). |
 | Hosting | Render static frontend and Python service, Free tiers | Separate frontend/API deployment with shared database |
-| Skill extraction | Claude API via the Anthropic Python SDK, inside FastAPI (`services/llm.py`) | Resume/JD → structured skills with cited evidence; see [skill-intelligence.md](skill-intelligence.md) |
+| Skill extraction | Groq API (`openai/gpt-oss-120b`, fallback `gpt-oss-20b`), strict JSON-schema output, called from FastAPI (`services/llm.py`) | Resume/JD → structured skills with cited evidence; see [skill-intelligence.md](skill-intelligence.md) |
 | Tests | Frontend build/manual journey checks; pytest and database integration checks | Verify demo behavior and critical access boundaries |
 
 There is no cache server, broker, search cluster, separate AI service, microservice deployment, or custom password database in this design. LLM calls run inside the existing FastAPI app. **The LLM extracts with cited evidence; it never scores.** All scores and fit values come from deterministic Python formulas. Later modules can be added inside the same application.
@@ -474,7 +474,7 @@ Keep one database and modular backend until actual load, team boundaries, or ope
 - The existing hackathon endpoints remain; venture detail is specified explicitly, and database write protections cover bypass attempts through the Data API.
 - Venture collaboration is designed here but remains a time-gated stretch deliverable. All advanced product capabilities are documented as extensions, not silently added to the 12-hour workload.
 - The supplied architecture comparison adds explicit public/campus visibility, reproducible skill coverage separate from eligibility, a missing-skill-to-mentor action, evidence provenance labels, and a compact buyer/demo story. It retains the ten-table core and existing request endpoints; no separate AI service, 20-table expansion, or role-bypass login is introduced.
-- [skill-intelligence.md](skill-intelligence.md) adds Claude-based extraction inside FastAPI (the LLM extracts, code scores), the fit formula, gap reports, and four hackathon tables. Built as cut-able steps S16–S17; if cut, fall back to manual skills and count coverage. GitHub analysis, 48-hour proof plans and recruiter outreach are post-hackathon.
+- [skill-intelligence.md](skill-intelligence.md) adds LLM extraction (Groq) inside FastAPI (the LLM extracts, code scores), the fit formula, gap reports, and four hackathon tables. Built as cut-able steps S16–S17; if cut, fall back to manual skills and count coverage. GitHub analysis, 48-hour proof plans and recruiter outreach are post-hackathon.
 
 - [threat-model.md](threat-model.md) treats university roster data as university-claimed rather than verified, and catalogues abuse across every module. [business-model.md](business-model.md) defines subscription plans per actor. Neither adds a hackathon dependency.
 

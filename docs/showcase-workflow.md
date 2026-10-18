@@ -66,7 +66,7 @@ flowchart LR
    `uv run --with 'psycopg[binary]' python database/reset_demo.py --yes`
 4. **Use separate browser profiles** (or one normal + one private window) per role, so two people stay logged in at once. Sign out between roles otherwise.
 5. **For live sign-ups (Flow A), configure email first** — see the note in Flow A. Without it, Supabase allows only ~2 emails per hour.
-6. Optional: set `ANTHROPIC_API_KEY` in `backend/.env` to enable resume and job-description analysis. Without it those two pages show a clear "switched off" message and everything else works.
+6. Resume and job-description analysis runs on Groq (`GROQ_API_KEY` in `backend/.env`). Groq's free limits are tight (about 30 requests and 8,000 tokens per minute per model), so space out analyses during the demo; the same resume or job description pasted twice is served from cache instantly. If the limit is hit the page says how many seconds to wait.
 
 ---
 
@@ -267,4 +267,4 @@ Reset before each rehearsal: `database/reset_demo.py --yes`.
 | Mentor matching, escrow logic, commission, holds, refunds, disputes | ID / liveness checks (KYC) |
 | Independent verification: conflict checks, random assignment, audits, expiry | DigiLocker / NAD academic record verification |
 | Ventures with confidentiality | GitHub analysis, 48-hour proof plans, recruiter outreach drafts |
-| Reports, scam flags, auto-hide, operator console, audit log | Resume / job-description analysis needs an `ANTHROPIC_API_KEY`; built and tested, switched off until a key is added |
+| Reports, scam flags, auto-hide, operator console, audit log | Resume / job-description analysis runs live on Groq (rate-limited; identical inputs are cached) |

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth";
 import { useQuery } from "../lib/useQuery";
-import type { Fit } from "../lib/types";
+import { AlertTriangle } from "lucide-react";
+import type { Fit, JobDescription } from "../lib/types";
 import { Heading, Badge, Loading, ErrorMessage } from "../components/ui";
 import { evidenceLabel } from "./Skills";
 export default function JobFit() {
@@ -17,6 +18,7 @@ export default function JobFit() {
         ? `/jds/${encodeURIComponent(jd)}/fit`
         : null,
   );
+  const description = useQuery<JobDescription>(jd ? `/jds/${encodeURIComponent(jd)}` : null);
   const [error, setError] = useState<unknown>();
   const [busy, setBusy] = useState(false);
   return (
@@ -77,9 +79,20 @@ export default function JobFit() {
       <ErrorMessage error={error} />
       <ErrorMessage error={result.error} />
       {result.loading && <Loading />}
+      {(description.data?.red_flags ?? []).length > 0 && (
+        <div className="notice warning" role="alert">
+          <AlertTriangle size={18} aria-hidden="true" />
+          <div>
+            <strong>This job description has warning signs:</strong> {description.data!.red_flags.join("; ")}.
+            Genuine employers never charge candidates.
+          </div>
+        </div>
+      )}
       {result.data && (
         <section className="panel">
-          <p className="eyebrow">Your fit report</p>
+          <p className="eyebrow">
+            Your fit report{description.data?.title ? ` · ${description.data.title}` : ""}
+          </p>
           <div className="coverage-number">
             {result.data.fit_percent === null
               ? "—"
@@ -116,9 +129,12 @@ export default function JobFit() {
                         {item.skill} <Badge>{item.kind}</Badge>
                       </h3>
                       <p className="small muted">
-                        Required level {item.min_level} · Your level{" "}
-                        {item.user_level ?? "not assessed"}
-                        {item.label && ` · ${evidenceLabel(item.label)}`}
+                        Required level {item.min_level} ·{" "}
+                        {item.user_level !== null
+                          ? `Your level ${item.user_level}${item.label ? ` · ${evidenceLabel(item.label)}` : ""}`
+                          : item.label
+                            ? "Mentioned, but not enough evidence for a level yet"
+                            : "Not in your skills yet"}
                       </p>
                       {item.jd_quote && (
                         <blockquote>{item.jd_quote}</blockquote>

@@ -38,8 +38,8 @@ def to_drive(row: dict) -> Drive:
     )
 
 
-async def _read_csv(file: UploadFile) -> bytes:
-    raw = await file.read(MAX_BYTES + 1)
+def _read_csv(file: UploadFile) -> bytes:
+    raw = file.file.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise ApiError(413, "PAYLOAD_TOO_LARGE", "The CSV must be 1 MB or smaller.")
     return raw
@@ -66,25 +66,25 @@ def list_roster(
 
 
 @router.post("/roster/preview")
-async def preview_roster(
+def preview_roster(
     workspace_id: UUID = Form(...),
     file: UploadFile = File(..., description="CSV, max 1 MB / 100 rows: student_id,name,email,branch,batch,cgpa"),
     actor: Actor = Depends(get_actor),
     db: Client = Depends(get_db),
 ) -> RosterPreview:
     require_member(db, workspace_id, "admin")
-    return parse_roster(await _read_csv(file))  # read-only: nothing is written
+    return parse_roster(_read_csv(file))  # read-only: nothing is written
 
 
 @router.post("/roster/commit")
-async def commit_roster(
+def commit_roster(
     workspace_id: UUID = Form(...),
     file: UploadFile = File(...),
     actor: Actor = Depends(get_actor),
     db: Client = Depends(get_db),
 ) -> RosterCommitResult:
     require_member(db, workspace_id, "admin")
-    preview = parse_roster(await _read_csv(file))  # full revalidation; a preview result is never trusted
+    preview = parse_roster(_read_csv(file))  # full revalidation; a preview result is never trusted
     if preview.errors:
         raise ApiError(422, "VALIDATION_ERROR", "Fix the listed rows; nothing was imported.", field_errors(preview))
     rows = [r.model_dump(mode="json") for r in preview.valid_rows]
